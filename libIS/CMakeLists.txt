@@ -1,0 +1,57 @@
+PROJECT(OSPRay)
+
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+CMAKE_POLICY(SET CMP0003 NEW) # since 2.6
+IF(POLICY CMP0015)
+  CMAKE_POLICY(SET CMP0015 NEW) # since 2.8.1
+ENDIF()
+IF(POLICY CMP0042)
+  CMAKE_POLICY(SET CMP0042 NEW) # since 3.0
+ENDIF()
+IF(POLICY CMP0054)
+  CMAKE_POLICY(SET CMP0054 OLD) # since 3.1
+ENDIF()
+
+FIND_PACKAGE(MPI)
+
+SET(OSPRAY_DIR /home/wald/Projects/ospray)
+LINK_DIRECTORIES(${OSPRAY_DIR}/bin)
+INCLUDE_DIRECTORIES(${OSPRAY_DIR})
+INCLUDE_DIRECTORIES(${OSPRAY_DIR}/bin)
+INCLUDE_DIRECTORIES(${OSPRAY_DIR}/ospray/embree-v2.7.1)
+
+INCLUDE_DIRECTORIES(${MPI_CXX_INCLUDE_PATH})
+
+SET(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++11")
+
+ADD_LIBRARY(lib_is_sim
+  is_sim.cpp
+  )
+TARGET_LINK_LIBRARIES(lib_is_sim
+  ${MPI_LIBRARIES}
+  )
+
+ADD_EXECUTABLE(test_sim
+  test_sim.cpp
+  )
+TARGET_LINK_LIBRARIES(test_sim
+  lib_is_sim
+  ospray
+  )
+
+
+ADD_LIBRARY(lib_is_render
+  is_render.cpp
+  )
+TARGET_LINK_LIBRARIES(lib_is_render
+  ${MPI_LIBRARIES}
+  ospray
+  )
+
+ADD_EXECUTABLE(test_render
+  test_render.cpp
+  )
+TARGET_LINK_LIBRARIES(test_render
+  lib_is_render
+  )
+  
