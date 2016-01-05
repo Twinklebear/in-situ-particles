@@ -46,5 +46,6 @@ int main(int ac, char **av)
     }
     MPI_CALL(Barrier(MPI_COMM_WORLD));
   }
+  MPI_CALL(Finalize());
 }
 

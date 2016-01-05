@@ -1,4 +1,5 @@
 #include "is_sim.h"
+#include <unistd.h>
 #include <vector>
 
 struct vec3f {
