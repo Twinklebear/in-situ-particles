@@ -51,13 +51,13 @@ namespace ospray {
     offset_colorID    = getParam1i("offset_colorID",-1);
     materialList      = getParamData("materialList");
     colorData         = getParamData("color");
+	const char *server = getParamString("server_name", NULL);
+	int port = getParam1i("port", -1);
+	if (!server || port == -1){
+		throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
+	}
 
-	// TODO: Must send these args through from command line
-	// How would pulling within _finalize work vs. doing it here?
-	const char *servName = "localhost";
-	int servPort = 290374;
-
-	DomainGrid *dd = ospIsPullRequest(MPI_COMM_WORLD, const_cast<char*>(servName), servPort, vec3i(1), .01f);
+	DomainGrid *dd = ospIsPullRequest(MPI_COMM_WORLD, const_cast<char*>(server), port, vec3i(1), .01f);
 
 	int rank, size;
 	float ghostRegionWidth = .1f;

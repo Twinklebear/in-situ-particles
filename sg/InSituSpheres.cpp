@@ -47,8 +47,12 @@ namespace ospray {
 					ospSet1f(mat,"Ns", 99.f);
 					ospCommit(mat);
 				}
+				const std::string server = reinterpret_cast<const ParamT<const std::string>*>(getParam("server_name"))->value;
+				const int port = reinterpret_cast<const ParamT<const int>*>(getParam("port"))->value;
 				ospSetMaterial(geometry, mat);
 				ospSet1f(geometry, "radius", radius);
+				ospSet1i(geometry, "port", port);
+				ospSetString(geometry, "server_name", server.c_str());
 				ospCommit(geometry);
 				lastCommitted = TimeStamp::now();
 				ospAddGeometry(ctx.world->ospModel, geometry);
