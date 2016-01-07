@@ -276,7 +276,7 @@ namespace ospray {
 
     OSPRAY_SG_DECLARE_MODULE(pkd)
     {
-      cout << "#osp:sg: loading 'pkd' module (defines sg::PKDGeometry)" << endl;
+      cout << "#osp:sg: loading 'pkd' module (defines sg::PKDGeometry and sg::InSituSpheres)" << endl;
     }
 
   } // ::ospray::sg

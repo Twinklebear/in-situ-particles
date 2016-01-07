@@ -22,6 +22,9 @@ int main(int ac, char **av)
   char *servName = av[1];
   int servPort = atoi(av[2]);
 
+  // TODO: We want a InSituSpheres geometry that will pull from the simulation
+  // when calling commit to get the actual data. This will be easier to integrate
+  // as a plugin than hacking the Qt viewer temporarily and is what we want in the long run.
   DomainGrid *dd = ospIsPullRequest(MPI_COMM_WORLD, servName, servPort, 
                                     vec3i(1), .01f);
 

@@ -25,6 +25,11 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
 IF (OSPRAY_MODULE_PARTIKD)
+  # Why do we need to configure MPI again when ospray has already found it?
+  # Is it b/c it's done in the ospray dir and not for the entire project?
+  # Should maybe be done project wide so the modules don't need to re-find it
+  CONFIGURE_MPI()
+  INCLUDE_DIRECTORIES(${MPI_CXX_INCLUDE_PATH})
   # ------------------------------------------------------------
   OSPRAY_ADD_LIBRARY(ospray_module_pkd${OSPRAY_LIB_SUFFIX} SHARED
     ospray/PKDGeometry.cpp
@@ -36,10 +41,13 @@ IF (OSPRAY_MODULE_PARTIKD)
     ospray/TraversePacket.ispc
     ospray/TraverseSPMD.ispc
 
+	ospray/InSituSpheres.cpp
+	ospray/InSituSpheres.ispc
+
     ospray/render/PKDSplatter.ispc
     ospray/render/PKDSplatter.cpp
     )
-  TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ospray${OSPRAY_LIB_SUFFIX})
+TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ospray${OSPRAY_LIB_SUFFIX} ${MPI_LIBRARIES})
   # ------------------------------------------------------------
 
   IF (NOT THIS_IS_MIC)
