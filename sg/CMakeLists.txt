@@ -22,9 +22,6 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/apps/qtViewer)
 OSPRAY_ADD_LIBRARY(ospray_sg_pkd${OSPRAY_LIB_SUFFIX} SHARED
   PKD.cpp
   InSituSpheres.cpp
-  # Add libIS stuff for InSituSpheres
-  ../libIS/is_render.cpp
-  ../libIS/is_sim.cpp
   )
 TARGET_LINK_LIBRARIES(ospray_sg_pkd${OSPRAY_LIB_SUFFIX} 
   ospray${OSPRAY_LIB_SUFFIX}

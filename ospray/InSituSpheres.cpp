@@ -49,16 +49,48 @@ namespace ospray {
     offset_radius     = getParam1i("offset_radius",-1);
     offset_materialID = getParam1i("offset_materialID",-1);
     offset_colorID    = getParam1i("offset_colorID",-1);
-    sphereData        = getParamData("InSituSpheres");
     materialList      = getParamData("materialList");
     colorData         = getParamData("color");
+
+	// TODO: Must send these args through from command line
+	// How would pulling within _finalize work vs. doing it here?
+	const char *servName = "localhost";
+	int servPort = 290374;
+
+	DomainGrid *dd = ospIsPullRequest(MPI_COMM_WORLD, const_cast<char*>(servName), servPort, vec3i(1), .01f);
+
+	int rank, size;
+	float ghostRegionWidth = .1f;
+	std::vector<vec3f> particles;
+	MPI_CALL(Comm_rank(MPI_COMM_WORLD,&rank));
+	MPI_CALL(Comm_size(MPI_COMM_WORLD,&size));
+	if (rank == 0)
+		PRINT(dd->worldBounds);
+	for (int r = 0; r < size; ++r) {
+		MPI_CALL(Barrier(MPI_COMM_WORLD));
+		if (r == rank) {
+			std::cout << "rank " << r << ": " << std::endl;
+			for (int mbID = 0; mbID < dd->numMine(); ++mbID) {
+				std::cout << " #" << mbID << std::endl;
+				const DomainGrid::Block &b = dd->getMine(mbID);
+				std::cout << "  lo " << b.actualDomain.lower << std::endl;
+				std::cout << "  hi " << b.actualDomain.upper << std::endl;
+				std::cout << "  #p " << b.particle.size() << std::endl;
+				positions = b.particle;
+			}
+			std::cout << std::flush;
+			fflush(0);
+			usleep(200);
+		}
+		MPI_CALL(Barrier(MPI_COMM_WORLD));
+	}
+	// We've got our positions so now send it to the ospray geometry
     
-    if (sphereData.ptr == NULL) {
-      throw std::runtime_error("#ospray:geometry/InSituSpheres: no 'InSituSpheres' data "
-                               "specified");
+    if (positions.empty()){
+      throw std::runtime_error("#ospray:geometry/InSituSpheres: no 'InSituSpheres' data loaded from sim");
     }
 
-    numSpheres = sphereData->numBytes / bytesPerSphere;
+    numSpheres = sizeof(vec3f) * positions.size() / bytesPerSphere;
     std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = " << numSpheres
               << std::endl;
 
@@ -88,7 +120,7 @@ namespace ospray {
     }
 
     ispc::InSituSpheresGeometry_set(getIE(),model->getIE(),
-                              sphereData->data,_materialList,
+                              &positions[0],_materialList,
                               colorData?(ispc::vec4f*)colorData->data:NULL,
                               numSpheres,bytesPerSphere,
                               radius,materialID,

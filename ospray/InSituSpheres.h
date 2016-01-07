@@ -71,7 +71,7 @@ namespace ospray {
     int64 offset_materialID;
     int64 offset_colorID;
 
-    Ref<Data> sphereData;
+	std::vector<vec3f> positions;
     Ref<Data> materialList;
     void     *_materialList;
     Ref<Data> colorData; /*!< sphere color array (vec3fa) */
