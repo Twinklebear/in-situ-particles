@@ -166,6 +166,7 @@ namespace ospray {
     }
 
     MPI_CALL(Barrier(ownComm));
+	MPI_CALL(Comm_disconnect(&simComm));
     return grid;
   }
 
