@@ -14,7 +14,7 @@ ENDIF()
 
 FIND_PACKAGE(MPI)
 
-SET(OSPRAY_DIR /home/sci/will/Repos/ospray-github)
+SET(OSPRAY_DIR "$ENV{OSPRAY_DIR}" CACHE STRING "Install location of ospray")
 LINK_DIRECTORIES(${OSPRAY_DIR}/bin/lib)
 INCLUDE_DIRECTORIES(${OSPRAY_DIR})
 INCLUDE_DIRECTORIES(${OSPRAY_DIR}/bin/include/ospray/)
