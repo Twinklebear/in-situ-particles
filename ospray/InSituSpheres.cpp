@@ -61,7 +61,6 @@ namespace ospray {
 
 	int rank, size;
 	float ghostRegionWidth = .1f;
-	std::vector<vec3f> particles;
 	MPI_CALL(Comm_rank(MPI_COMM_WORLD,&rank));
 	MPI_CALL(Comm_size(MPI_COMM_WORLD,&size));
 	if (rank == 0)
