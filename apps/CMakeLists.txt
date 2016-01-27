@@ -17,7 +17,7 @@
 CONFIGURE_OSPRAY()
 
 # ------------------------------------------------------------
-ADD_EXECUTABLE(ospPartiKD
+ADD_LIBRARY(ospray_module_pkd_builder
   PartiKD.cpp
   ParticleModel.cpp
   #importers
@@ -25,8 +25,9 @@ ADD_EXECUTABLE(ospPartiKD
   ImportCOSMOS.cpp
   ImportXYZ.cpp
   ImportCosmicWeb.cpp
-  )
-TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} 
+)
+ADD_EXECUTABLE(ospPartiKD PartiKDApp.cpp)
+TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_module_pkd_builder
   ospray_xml${OSPRAY_LIB_SUFFIX})
 # ------------------------------------------------------------
 
