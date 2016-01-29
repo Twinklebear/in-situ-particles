@@ -31,6 +31,7 @@ namespace ospray {
 				return;
 			}
 			if (!geometry){
+				std::cout << "#osp:sg:InSituSpheres: setting up InSituSpheres geometry\n";
 				ospLoadModule("pkd");
 				geometry = ospNewGeometry("InSituSpheres");
 				if (!geometry){
@@ -53,9 +54,12 @@ namespace ospray {
 				ospSet1f(geometry, "radius", radius);
 				ospSet1i(geometry, "port", port);
 				ospSetString(geometry, "server_name", server.c_str());
+				// TODO: The commit and additon of the geometry is performed asynchronously. So how
+				// can we tell the viewer that the bounds of the geometry have changed?
 				ospCommit(geometry);
 				lastCommitted = TimeStamp::now();
 				ospAddGeometry(ctx.world->ospModel, geometry);
+				std::cout << "Geometry added\n";
 			}
 		}
 		OSP_REGISTER_SG_NODE(InSituSpheres);

@@ -18,18 +18,28 @@
 
 // ospray
 #include "InSituSpheres.h"
+#include "PKDGeometry.h"
 #include "ospray/common/Data.h"
 #include "ospray/common/Model.h"
 #include "libIS/is_render.h"
 // ispc-generated files
 #include "InSituSpheres_ispc.h"
+#include "PKDGeometry_ispc.h"
+// pkd builder library
+#include "apps/PartiKD.h"
 
 namespace ospray {
+#define DEBUG_SPHERES 0
 
   InSituSpheres::InSituSpheres()
   {
-    this->ispcEquivalent = ispc::InSituSpheres_create(this);
+#if DEBUG_SPHERES
+    ispcEquivalent = ispc::InSituSpheres_create(this);
+#else
+    ispcEquivalent = ispc::PartiKDGeometry_create(this);
+#endif
     _materialList = NULL;
+	particle_model.radius = 0.01;
   }
 
   InSituSpheres::~InSituSpheres()
@@ -38,6 +48,15 @@ namespace ospray {
       free(_materialList);
       _materialList = NULL;
     }
+  }
+
+  box3f InSituSpheres::getBounds() const
+  {
+    box3f b = empty;
+    for (size_t i = 0; i < particle_model.position.size(); ++i){
+      b.extend(particle_model.position[i]);
+    }
+    return b;
   }
 
   void InSituSpheres::finalize(Model *model) 
@@ -75,7 +94,7 @@ namespace ospray {
 				std::cout << "  lo " << b.actualDomain.lower << std::endl;
 				std::cout << "  hi " << b.actualDomain.upper << std::endl;
 				std::cout << "  #p " << b.particle.size() << std::endl;
-				positions = b.particle;
+				particle_model.position = b.particle;
 			}
 			std::cout << std::flush;
 			fflush(0);
@@ -85,11 +104,13 @@ namespace ospray {
 	}
 	// We've got our positions so now send it to the ospray geometry
     
-    if (positions.empty()){
+    if (particle_model.position.empty()){
       throw std::runtime_error("#ospray:geometry/InSituSpheres: no 'InSituSpheres' data loaded from sim");
     }
 
-    numSpheres = sizeof(vec3f) * positions.size() / bytesPerSphere;
+	// TODO: Here we want to actually build a pkd tree on the particles and use the pkd
+	// geometry to intersect against
+    numSpheres = sizeof(vec3f) * particle_model.position.size() / bytesPerSphere;
     std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = " << numSpheres
               << std::endl;
 
@@ -118,13 +139,35 @@ namespace ospray {
       _materialList = (void*)ispcMaterials;
     }
 
-    ispc::InSituSpheresGeometry_set(getIE(),model->getIE(),
-                              &positions[0],_materialList,
-                              colorData?(ispc::vec4f*)colorData->data:NULL,
-                              numSpheres,bytesPerSphere,
-                              radius,materialID,
-                              offset_center,offset_radius,
-                              offset_materialID,offset_colorID);
+	// Build the pkd tree on the particles
+	PartiKD pkd;
+	std::cout << "InSituSpheres: building pkd\n";
+	pkd.build(&particle_model);
+#if DEBUG_SPHERES
+    ispc::InSituSpheresGeometry_set(getIE(), model->getIE(),
+                              &particle_model.position[0], _materialList,
+                              colorData ? (ispc::vec4f*)colorData->data : NULL,
+                              numSpheres, bytesPerSphere,
+                              radius, materialID,
+                              offset_center, offset_radius,
+                              offset_materialID, offset_colorID);
+#else
+	const box3f centerBounds = getBounds();
+    const box3f sphereBounds(centerBounds.lower - vec3f(particle_model.radius),
+                             centerBounds.upper + vec3f(particle_model.radius));
+	std::cout << "InSituSpheres: setting pkd geometry\n";
+    ispc::PartiKDGeometry_set(getIE(), model->getIE(), false, false,
+							  // TODO: Transfer function
+                              /*transferFunction ? transferFunction->getIE() : NULL,*/ NULL,
+                              particle_model.radius,
+                              pkd.numParticles,
+                              pkd.numInnerNodes,
+                              (ispc::PKDParticle*)&particle_model.position[0],
+                              /*attribute,*/ NULL, // TODO: Attribs
+							  /*binBitsArray,*/ NULL, // TODO: attribs
+                              (ispc::box3f&)centerBounds, (ispc::box3f&)sphereBounds,
+                              /*attr_lo,attr_hi);*/ 0, 0); // TODO: Attribs
+#endif
   }
 
   OSP_REGISTER_GEOMETRY(InSituSpheres,InSituSpheres);

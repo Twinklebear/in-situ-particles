@@ -25,6 +25,12 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
 IF (OSPRAY_MODULE_PARTIKD)
+  IF (NOT THIS_IS_MIC)
+    # the scene graph plugin
+	ADD_SUBDIRECTORY(sg)
+	# helper apps (converters, builders,...)
+  ENDIF()
+  ADD_SUBDIRECTORY(apps)
   # Why do we need to configure MPI again when ospray has already found it?
   # Is it b/c it's done in the ospray dir and not for the entire project?
   # Should maybe be done project wide so the modules don't need to re-find it
@@ -49,18 +55,12 @@ IF (OSPRAY_MODULE_PARTIKD)
 
     ospray/render/PKDSplatter.ispc
     ospray/render/PKDSplatter.cpp
-    )
-TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX} ospray${OSPRAY_LIB_SUFFIX} ${MPI_LIBRARIES})
+  )
+  TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX}
+	  ospray_module_pkd_builder${OSPRAY_LIB_SUFFIX}
+	  ospray${OSPRAY_LIB_SUFFIX}
+	  ${MPI_LIBRARIES})
   # ------------------------------------------------------------
-
-  IF (NOT THIS_IS_MIC)
-    # the scene graph plugin
-    ADD_SUBDIRECTORY(sg)
-    
-    # helper apps (converters, builders,...)
-    ADD_SUBDIRECTORY(apps)
-  ENDIF()
-
 #  CONFIGURE_MPI()
 #  ADD_EXECUTABLE(ospDPKDservice
 #    dPKD/service.cpp

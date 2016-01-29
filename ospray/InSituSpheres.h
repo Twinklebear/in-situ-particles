@@ -17,6 +17,7 @@
 #pragma once
 
 #include "ospray/geometry/Geometry.h"
+#include "apps/ParticleModel.h"
 
 namespace ospray {
   /*! @{ \ingroup ospray_module_streamlines */
@@ -60,6 +61,7 @@ namespace ospray {
     /*! \brief integrates this geometry's primitives into the respective
       model's acceleration structure */
     virtual void finalize(Model *model);
+    box3f getBounds() const;
 
     float radius;   //!< default radius, if no per-sphere radius was specified.
     int32 materialID;
@@ -71,7 +73,7 @@ namespace ospray {
     int64 offset_materialID;
     int64 offset_colorID;
 
-	std::vector<vec3f> positions;
+	ParticleModel particle_model;
     Ref<Data> materialList;
     void     *_materialList;
     Ref<Data> colorData; /*!< sphere color array (vec3fa) */

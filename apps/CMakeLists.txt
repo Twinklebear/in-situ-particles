@@ -26,9 +26,11 @@ ADD_LIBRARY(ospray_module_pkd_builder
   ImportXYZ.cpp
   ImportCosmicWeb.cpp
 )
-ADD_EXECUTABLE(ospPartiKD PartiKDApp.cpp)
-TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_module_pkd_builder
-  ospray_xml${OSPRAY_LIB_SUFFIX})
+IF (NOT THIS_IS_MIC)
+  ADD_EXECUTABLE(ospPartiKD PartiKDApp.cpp)
+  TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_module_pkd_builder
+    ospray_xml${OSPRAY_LIB_SUFFIX})
+ENDIF()
 # ------------------------------------------------------------
 
 # ------------------------------------------------------------
