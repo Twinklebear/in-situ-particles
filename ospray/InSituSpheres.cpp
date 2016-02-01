@@ -74,7 +74,7 @@ namespace ospray {
 	}
 
 	float ghostRegionWidth = radius * 2;
-	DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server), port, vec3i(1),
+	DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server), port, vec3i(2),
 			ghostRegionWidth);
 
 	int rank, size;

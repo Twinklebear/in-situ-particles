@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
-
+#include <ostream>
 
 #include "is_common.h"
 
@@ -39,3 +39,6 @@ namespace ospray {
   DomainGrid *ospIsPullRequest(MPI_Comm comm, char *servName, int servPort,
                                const vec3i &dims, const float ghostRegionWidth);
 }
+
+std::ostream& operator<<(std::ostream &os, const ospray::DomainGrid::Block &b);
+

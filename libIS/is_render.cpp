@@ -128,7 +128,6 @@ namespace ospray {
     MPI_CALL(Comm_dup(comm,&ownComm));
     MPI_CALL(Comm_rank(comm,&rank));
     MPI_CALL(Comm_size(comm,&size));
-	std::cout << "com setup\n" << std::flush;
     
     simComm = establishConnection(servName,servPort);
 
@@ -138,7 +137,11 @@ namespace ospray {
     MPI_CALL(Barrier(ownComm));
     
     box3f worldBounds;
+	// Receive the world bounds from the simulation
     MPI_CALL(Bcast(&worldBounds,6,MPI_FLOAT,0,simComm));
+	if (rank == 0){
+		std::cout << "worldBounds = " << worldBounds.lower << " to " << worldBounds.upper << "\n";
+	}
     DomainGrid *grid = new DomainGrid(dims,worldBounds,ghostRegionWidth);
     size_t numParticles;
     for (int s=0;s<numSimRanks;s++) {
@@ -172,3 +175,12 @@ namespace ospray {
   }
 
 } // ::ospray
+
+
+std::ostream& operator<<(std::ostream &os, const ospray::DomainGrid::Block &b){
+	os << "Block on actual domain " << b.actualDomain
+		<< " (ghost " << b.ghostDomain << ")"
+		<< " has " << b.particle.size() << " particles";
+	return os;
+}
+
