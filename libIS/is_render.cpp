@@ -128,6 +128,7 @@ namespace ospray {
     MPI_CALL(Comm_dup(comm,&ownComm));
     MPI_CALL(Comm_rank(comm,&rank));
     MPI_CALL(Comm_size(comm,&size));
+	std::cout << "com setup\n" << std::flush;
     
     simComm = establishConnection(servName,servPort);
 

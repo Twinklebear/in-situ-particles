@@ -16,12 +16,14 @@
 
 #undef NDEBUG
 
+#include <iostream>
 // ospray
 #include "InSituSpheres.h"
 #include "PKDGeometry.h"
 #include "ospray/common/Data.h"
 #include "ospray/common/Model.h"
 #include "libIS/is_render.h"
+#include "ospray/mpi/MPICommon.h"
 // ispc-generated files
 #include "InSituSpheres_ispc.h"
 #include "PKDGeometry_ispc.h"
@@ -71,16 +73,17 @@ namespace ospray {
 		throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
 	}
 
-	DomainGrid *dd = ospIsPullRequest(MPI_COMM_WORLD, const_cast<char*>(server), port, vec3i(1), .01f);
+	float ghostRegionWidth = radius * 2;
+	DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server), port, vec3i(1),
+			ghostRegionWidth);
 
 	int rank, size;
-	float ghostRegionWidth = .1f;
-	MPI_CALL(Comm_rank(MPI_COMM_WORLD,&rank));
-	MPI_CALL(Comm_size(MPI_COMM_WORLD,&size));
+	MPI_CALL(Comm_rank(ospray::mpi::worker.comm,&rank));
+	MPI_CALL(Comm_size(ospray::mpi::worker.comm,&size));
 	if (rank == 0)
 		PRINT(dd->worldBounds);
 	for (int r = 0; r < size; ++r) {
-		MPI_CALL(Barrier(MPI_COMM_WORLD));
+		MPI_CALL(Barrier(ospray::mpi::worker.comm));
 		if (r == rank) {
 			std::cout << "rank " << r << ": " << std::endl;
 			for (int mbID = 0; mbID < dd->numMine(); ++mbID) {
@@ -95,7 +98,7 @@ namespace ospray {
 			fflush(0);
 			usleep(200);
 		}
-		MPI_CALL(Barrier(MPI_COMM_WORLD));
+		MPI_CALL(Barrier(ospray::mpi::worker.comm));
 	}
 	// We've got our positions so now send it to the ospray geometry
     
