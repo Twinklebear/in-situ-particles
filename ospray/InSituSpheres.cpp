@@ -29,15 +29,10 @@
 #include "apps/PartiKD.h"
 
 namespace ospray {
-#define DEBUG_SPHERES 0
 
   InSituSpheres::InSituSpheres()
   {
-#if DEBUG_SPHERES
-    ispcEquivalent = ispc::InSituSpheres_create(this);
-#else
     ispcEquivalent = ispc::PartiKDGeometry_create(this);
-#endif
     _materialList = NULL;
 	particle_model.radius = 0.01;
   }
@@ -143,15 +138,6 @@ namespace ospray {
 	PartiKD pkd;
 	std::cout << "InSituSpheres: building pkd\n";
 	pkd.build(&particle_model);
-#if DEBUG_SPHERES
-    ispc::InSituSpheresGeometry_set(getIE(), model->getIE(),
-                              &particle_model.position[0], _materialList,
-                              colorData ? (ispc::vec4f*)colorData->data : NULL,
-                              numSpheres, bytesPerSphere,
-                              radius, materialID,
-                              offset_center, offset_radius,
-                              offset_materialID, offset_colorID);
-#else
 	const box3f centerBounds = getBounds();
     const box3f sphereBounds(centerBounds.lower - vec3f(particle_model.radius),
                              centerBounds.upper + vec3f(particle_model.radius));
@@ -167,7 +153,6 @@ namespace ospray {
 							  /*binBitsArray,*/ NULL, // TODO: attribs
                               (ispc::box3f&)centerBounds, (ispc::box3f&)sphereBounds,
                               /*attr_lo,attr_hi);*/ 0, 0); // TODO: Attribs
-#endif
   }
 
   OSP_REGISTER_GEOMETRY(InSituSpheres,InSituSpheres);
