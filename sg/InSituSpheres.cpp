@@ -8,7 +8,7 @@
 
 namespace ospray {
 	namespace sg {
-		InSituSpheres::InSituSpheres() : Geometry("InSituSpheres"), radius(0.01f), geometry(NULL)
+		InSituSpheres::InSituSpheres() : Geometry("InSituSpheres"), radius(0.01f), geometry(NULL), bounds(embree::empty)
 		{}
 		InSituSpheres::~InSituSpheres(){
 			if (geometry){
@@ -17,14 +17,6 @@ namespace ospray {
 			}
 		}
 		box3f InSituSpheres::getBounds(){
-			// TODO WILL: We now have the first worker send us the bounds
-			// of the geometry once it's been loaded but how can we update
-			// the renderer & camera?
-			box3f bounds = embree::empty;
-			bounds.extend(vec3f(0.11, 0.11, 0.11));
-			bounds.extend(vec3f(0.89, 0.89, 0.89));
-			bounds.lower -= vec3f(radius);
-			bounds.upper += vec3f(radius);
 			return bounds;
 		}
 		void InSituSpheres::render(RenderContext &ctx){
@@ -66,10 +58,9 @@ namespace ospray {
 				if (ospray::mpi::world.rank == 0){
 					std::thread test_thread{[&](){
 						std::cout << "Waiting to recieve world bounds\n";
-						box3f world_bounds = embree::empty;
-						MPI_CALL(Recv(&world_bounds, 6, MPI_FLOAT, 1, 1,
+						MPI_CALL(Recv(&bounds, 6, MPI_FLOAT, 1, 1,
 									ospray::mpi::world.comm, MPI_STATUS_IGNORE));
-						std::cout << "MASTER recieved world bounds: " << world_bounds << "\n";
+						std::cout << "MASTER recieved world bounds: " << bounds << "\n";
 					}};
 					test_thread.detach();
 				}

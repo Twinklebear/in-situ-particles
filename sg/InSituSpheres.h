@@ -8,6 +8,7 @@ namespace ospray {
 		struct InSituSpheres : public sg::Geometry {
 			float radius;
 			OSPGeometry geometry;
+			box3f bounds;
 
 			InSituSpheres();
 			~InSituSpheres();
