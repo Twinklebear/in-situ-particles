@@ -290,7 +290,7 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
         t_in   = stackPtr[-1].t_in;
         t_out  = min(stackPtr[-1].t_out,ray.t);
       }
-      -- stackPtr;
+      --stackPtr;
 
       // check if the node is still active (all the traversal since it
       // originally got pushed may have shortened the ray)

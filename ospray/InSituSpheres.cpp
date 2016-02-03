@@ -73,13 +73,12 @@ namespace ospray {
 		throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
 	}
 
-	float ghostRegionWidth = radius * 2;
+	float ghostRegionWidth = radius * 1.5f;
 	DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server), port, vec3i(2),
 			ghostRegionWidth);
 
-	int rank, size;
-	MPI_CALL(Comm_rank(ospray::mpi::worker.comm,&rank));
-	MPI_CALL(Comm_size(ospray::mpi::worker.comm,&size));
+	int rank = ospray::mpi::worker.rank;
+	int size = ospray::mpi::worker.size;
 	if (rank == 0)
 		PRINT(dd->worldBounds);
 	for (int r = 0; r < size; ++r) {
@@ -100,14 +99,17 @@ namespace ospray {
 		}
 		MPI_CALL(Barrier(ospray::mpi::worker.comm));
 	}
-	// We've got our positions so now send it to the ospray geometry
-    
+	// Tell the render process the bounds of the geometry in the world
+	if (ospray::mpi::world.rank == 1){
+		std::cout << "Sending world bounds\n";
+		MPI_CALL(Send(&dd->worldBounds, 6, MPI_FLOAT, 0, 1, ospray::mpi::world.comm));
+	}
+
     if (particle_model.position.empty()){
       throw std::runtime_error("#ospray:geometry/InSituSpheres: no 'InSituSpheres' data loaded from sim");
     }
 
-	// TODO: Here we want to actually build a pkd tree on the particles and use the pkd
-	// geometry to intersect against
+	// We've got our positions so now send it to the ospray geometry
     numSpheres = sizeof(vec3f) * particle_model.position.size() / bytesPerSphere;
     std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = " << numSpheres
               << std::endl;
