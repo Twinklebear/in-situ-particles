@@ -9,18 +9,17 @@
 namespace ospray {
 	namespace sg {
 		InSituSpheres::InSituSpheres() : Geometry("InSituSpheres"), radius(0.01f), geometry(NULL),
-			have_world_bounds(false), bounds(embree::empty)
+			bounds(embree::empty), poller_exit(false)
 		{}
 		InSituSpheres::~InSituSpheres(){
 			if (geometry){
 				ospRelease(geometry);
 				geometry = NULL;
 			}
+			poller_exit = true;
+			polling_thread.join();
 		}
 		box3f InSituSpheres::getBounds(){
-			if (have_world_bounds){
-				lastCommitted = TimeStamp::now();
-			}
 			return bounds;
 		}
 		void InSituSpheres::render(RenderContext &ctx){
@@ -57,20 +56,22 @@ namespace ospray {
 				ospCommit(geometry);
 				lastCommitted = TimeStamp::now();
 				ospAddGeometry(ctx.world->ospModel, geometry);
-				// TODO WILL: Wait for the first worker to send us the world bounds?
-				if (ospray::mpi::world.rank == 0){
-					std::thread test_thread{[&](){
-						std::cout << "Waiting to recieve world bounds\n";
-						MPI_CALL(Recv(&bounds, 6, MPI_FLOAT, 1, 1,
-									ospray::mpi::world.comm, MPI_STATUS_IGNORE));
-						std::cout << "MASTER recieved world bounds: " << bounds << "\n";
-						have_world_bounds = true;
-						lastModified = TimeStamp::now();
-					}};
-					test_thread.detach();
+				// Launch a thread that waits for the first worker to send us updated world bounds
+				// indicating that they have new data and we're dirty
+				if (ospray::mpi::world.rank == 0 && polling_thread.get_id() == std::thread::id()){
+					polling_thread = std::thread([&](){
+						while (!poller_exit){
+							std::cout << "sg::InSituSpheres: MASTER Waiting to recieve world bounds\n";
+							MPI_CALL(Recv(&bounds, 6, MPI_FLOAT, 1, 1,
+										ospray::mpi::world.comm, MPI_STATUS_IGNORE));
+							std::cout << "sg::InSituSpheres: MASTER recieved world bounds: " << bounds << "\n";
+							lastModified = TimeStamp::now();
+						}
+					});
 				}
 				std::cout << "Geometry added\n";
 			} else {
+				ospCommit(geometry);
 				lastCommitted = TimeStamp::now();
 			}
 		}

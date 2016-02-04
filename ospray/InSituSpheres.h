@@ -16,8 +16,12 @@
 
 #pragma once
 
+#include <atomic>
+#include <thread>
 #include "ospray/geometry/Geometry.h"
 #include "apps/ParticleModel.h"
+// pkd builder library
+#include "apps/PartiKD.h"
 
 namespace ospray {
   /*! @{ \ingroup ospray_module_streamlines */
@@ -73,13 +77,33 @@ namespace ospray {
     int64 offset_materialID;
     int64 offset_colorID;
 
-	ParticleModel particle_model;
     Ref<Data> materialList;
     void     *_materialList;
     Ref<Data> colorData; /*!< sphere color array (vec3fa) */
+	/*! We have two pkds that we swap between, once containing
+	 * the data being rendered and one with the data coming from
+	 * the next time step & being built */
+	PartiKD pkds[2];
+	int rendered_pkd;
+	std::string server;
+	int port;
+	// Thread that will continue to poll new timesteps from
+	// the simulation
+	std::thread sim_poller;
+	std::atomic<bool> poller_exit;
 
     InSituSpheres();
     ~InSituSpheres();
+
+  private:
+	// Repeatedly poll from the simulation until poller_exit 
+	// is set true
+	// Worker nodes should run this on a separate thread and call it repeatedly
+	// once we actual have the data from the sim tell the master that we're dirty and should
+	// re-commit. Then when re-committing we'll build the p-kd tree
+	void pollSimulation();
+	// Fetch new data from the simulation
+	void getTimeStep();
   };
   /*! @} */
 

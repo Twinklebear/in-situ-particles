@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <thread>
 #include <atomic>
 #include "sg/geometry/Geometry.h"
 
@@ -9,8 +10,9 @@ namespace ospray {
 		struct InSituSpheres : public sg::Geometry {
 			float radius;
 			OSPGeometry geometry;
-			std::atomic<bool> have_world_bounds;
 			box3f bounds;
+			std::atomic<bool> poller_exit;
+			std::thread polling_thread;
 
 			InSituSpheres();
 			~InSituSpheres();
