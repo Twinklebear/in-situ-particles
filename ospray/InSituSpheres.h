@@ -84,7 +84,7 @@ namespace ospray {
 	 * the data being rendered and one with the data coming from
 	 * the next time step & being built */
 	PartiKD pkds[2];
-	int rendered_pkd;
+	std::atomic<int> rendered_pkd;
 	std::string server;
 	int port;
 	// Thread that will continue to poll new timesteps from

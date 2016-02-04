@@ -52,7 +52,8 @@ namespace ospray {
 
   box3f InSituSpheres::getBounds() const
   {
-	  ParticleModel *model = pkds[rendered_pkd].model;
+	  int to_render = rendered_pkd.load() % 2;
+	  ParticleModel *model = pkds[to_render].model;
 	  box3f b = empty;
 	  if (model != NULL){
 		  for (size_t i = 0; i < model->position.size(); ++i){
@@ -101,11 +102,13 @@ namespace ospray {
 		  _materialList = (void*)ispcMaterials;
 	  }
 
-	  PartiKD &pkd_active = pkds[rendered_pkd];
+	  int to_render = rendered_pkd.load() % 2;
+	  PartiKD &pkd_active = pkds[to_render];
 	  ParticleModel *particle_model = pkd_active.model;
 	  const box3f centerBounds = getBounds();
 	  const box3f sphereBounds(centerBounds.lower - vec3f(radius), centerBounds.upper + vec3f(radius));
 	  std::cout << "ospray::InSituSpheres: setting pkd geometry\n";
+
 	  assert(particle_model);
 	  ispc::PartiKDGeometry_set(getIE(), model->getIE(), false, false,
 			  // TODO: Transfer function
@@ -135,13 +138,18 @@ namespace ospray {
 	  // Get the model from pkd and allocate it if it's missing
 	  // we also have the builder forget about the model since it asserts
 	  // that no model is set when calling build
-	  // TODO: Or should we just re-construct the PartiKD here and reset it all?
-	  PartiKD &pkd_build = pkds[(rendered_pkd + 1) % 2];
-	  ParticleModel *model = pkd_build.model;
-	  pkd_build.model = NULL;
+	  int to_update = rendered_pkd.load() + 1;
+	  std::cout << "ospray::InSituSpheres: Building new timestep on pkd " << to_update % 2 << "\n";
+	  ParticleModel *model = pkds[to_update % 2].model;
+	  // Clear the old build data
+	  pkds[to_update % 2] = PartiKD{};
+	  PartiKD &pkd_build = pkds[to_update % 2];
 	  if (!model){
 		  model = new ParticleModel;
 	  }
+	  // TODO WILL: If we store more stuff here we'll need a proper
+	  // way to clean & reset the ParticleModel
+	  model->position.clear();
 	  model->radius = radius;
 	  int rank = ospray::mpi::worker.rank;
 	  int size = ospray::mpi::worker.size;
@@ -150,7 +158,8 @@ namespace ospray {
 	  for (int r = 0; r < size; ++r) {
 		  MPI_CALL(Barrier(ospray::mpi::worker.comm));
 		  if (r == rank) {
-			  std::cout << "rank " << r << ": " << std::endl;
+			  std::cout << "worker rank " << r << " (global rank "
+				  << ospray::mpi::world.rank << ") : " << std::endl;
 			  for (int mbID = 0; mbID < dd->numMine(); ++mbID) {
 				  std::cout << " #" << mbID << std::endl;
 				  const DomainGrid::Block &b = dd->getMine(mbID);
@@ -188,7 +197,9 @@ namespace ospray {
 	  std::cout << "InSituSpheres: building pkd\n";
 	  pkd_build.build(model);
 
-	  rendered_pkd = (rendered_pkd + 1) % 2;
+	  rendered_pkd.store(to_update); 
+	  // Wait for all workers to finish building the pkd
+	  MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
 	  // Tell the render process the bounds of the geometry in the world
 	  // and that we're dirty and should be updated
