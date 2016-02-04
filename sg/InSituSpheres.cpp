@@ -8,7 +8,8 @@
 
 namespace ospray {
 	namespace sg {
-		InSituSpheres::InSituSpheres() : Geometry("InSituSpheres"), radius(0.01f), geometry(NULL), bounds(embree::empty)
+		InSituSpheres::InSituSpheres() : Geometry("InSituSpheres"), radius(0.01f), geometry(NULL),
+			have_world_bounds(false), bounds(embree::empty)
 		{}
 		InSituSpheres::~InSituSpheres(){
 			if (geometry){
@@ -17,10 +18,12 @@ namespace ospray {
 			}
 		}
 		box3f InSituSpheres::getBounds(){
+			if (have_world_bounds){
+				lastCommitted = TimeStamp::now();
+			}
 			return bounds;
 		}
 		void InSituSpheres::render(RenderContext &ctx){
-			assert(!geometry);
 			// Check if data has changed
 			if (lastModified <= lastCommitted){
 				return;
@@ -61,10 +64,14 @@ namespace ospray {
 						MPI_CALL(Recv(&bounds, 6, MPI_FLOAT, 1, 1,
 									ospray::mpi::world.comm, MPI_STATUS_IGNORE));
 						std::cout << "MASTER recieved world bounds: " << bounds << "\n";
+						have_world_bounds = true;
+						lastModified = TimeStamp::now();
 					}};
 					test_thread.detach();
 				}
 				std::cout << "Geometry added\n";
+			} else {
+				lastCommitted = TimeStamp::now();
 			}
 		}
 		OSP_REGISTER_SG_NODE(InSituSpheres);
