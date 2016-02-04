@@ -79,12 +79,11 @@ namespace ospray {
 	  if (server.empty() || port == -1){
 		  throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
 	  }
-	  // Launch the thread to poll the sim if we haven't already
+	  // Do a single blocking poll to get an initial timestep to render if the thread
+	  // hasn't been started
 	  if (sim_poller.get_id() == std::thread::id()){
-		  std::cout << "Blocking initial timestep query, then launching thread\n";
-		  // Do a single blocking poll to get an initial timestep to render
+		  std::cout << "ospray::InSituSpheres: Making blocking initial query\n";
 		  getTimeStep();
-		  sim_poller = std::thread([&]{ pollSimulation(); });
 	  }
 
 	  if (_materialList) {
@@ -121,6 +120,12 @@ namespace ospray {
 			  /*binBitsArray,*/ NULL, // TODO: attribs
 			  (ispc::box3f&)centerBounds, (ispc::box3f&)sphereBounds,
 			  /*attr_lo,attr_hi);*/ 0, 0); // TODO: Attribs
+
+	  // Launch the thread to poll the sim if we haven't already
+	  if (sim_poller.get_id() == std::thread::id()){
+		  std::cout << "ospray::InSituSpheres: launching background polling thread\n";
+		  sim_poller = std::thread([&]{ pollSimulation(); });
+	  }
   }
   void InSituSpheres::pollSimulation(){
 	  while (!poller_exit){
