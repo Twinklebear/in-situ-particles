@@ -14,7 +14,7 @@ namespace ospray {
 
   struct DomainGrid {
     struct Block {
-      std::vector<vec3f> particle;
+      std::vector<float> particle;
       box3f actualDomain;
       box3f ghostDomain;
       int firstOwner;
@@ -24,6 +24,7 @@ namespace ospray {
     DomainGrid(const vec3i &dims,
                const box3f &domain,
                const float ghosting);
+	~DomainGrid();
     size_t numMine() const { return myBlock.size(); }
     Block &getMine(int myBlockID) { return block[myBlock[myBlockID]]; }
     const Block &getMine(int myBlockID) const { return block[myBlock[myBlockID]]; }

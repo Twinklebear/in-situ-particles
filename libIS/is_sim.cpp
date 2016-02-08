@@ -133,12 +133,14 @@ namespace is_sim {
     } 
   }
   
-  box3f computeBounds(vec3f *particle, size_t numParticles)
+  box3f computeBounds(const float *particle, size_t numParticles)
   {
     // TODO: parallelize
     box3f bounds = embree::empty;
-    for (int i=0;i<numParticles;i++)
-      bounds.extend(particle[i]);
+    for (int i = 0; i < numParticles; ++i){
+		size_t pid = i * OSP_IS_STRIDE_IN_FLOATS;
+		bounds.extend(vec3f(particle[pid], particle[pid + 1], particle[pid + 2]));
+	}
     return bounds;
   }
 
@@ -156,7 +158,7 @@ namespace is_sim {
   }
   void pullRequest(const std::string &portName,
                    size_t numParticles,
-                   vec3f *particle)
+                   float *particle)
   {
     MPI_Comm remComm;
     if (simRank == 0)
@@ -171,11 +173,9 @@ namespace is_sim {
       cout << "#is_sim: mpi comm from is_render established... have " 
            << remSize << " remote ranks" << endl;
 
-#ifdef QUERY_BOXES
-    /*! this variant sends the (reduced) bounding box to the render
+    /*! this sends the (reduced) bounding box to the render
         processes, and then waits for a list of boxes from each rank
         that'll say which particles it wants */
-    
      // compute bounds of all particles on this node ...
      box3f myBounds = computeBounds(particle,numParticles);
      box3f allBounds;
@@ -187,10 +187,14 @@ namespace is_sim {
 
      // now, send reduced bounds to remote group
      if (simRank == 0) {
+	   // TODO WILL: Also send the stride of the data we're sending
+	   // if we want more than 1 attrib
        MPI_CALL(Bcast(&allBounds,6,MPI_FLOAT,MPI_ROOT,remComm));
      }
 
+	 std::vector<float> queried;
      for (int r=0;r<remSize;r++) {
+	   queried.clear();
        int numFromR;
        MPI_CALL(Recv(&numFromR,1,MPI_INT,r,MPI_ANY_TAG,remComm,MPI_STATUS_IGNORE));
        for (int q=0;q<numFromR;q++) {
@@ -198,36 +202,20 @@ namespace is_sim {
          MPI_CALL(Recv(&queryBox,6,MPI_FLOAT,r,
                        MPI_ANY_TAG,remComm,MPI_STATUS_IGNORE));
          
-         std::vector<vec3f> queried;
-         for (int i=0;i<numParticles;i++) {
-           if (inside(queryBox,particle[i]))
-             queried.push_back(particle[i]);
-         }
-         
-         int num = queried.size();
+		 for (int i = 0; i < numParticles; ++i){
+			 int pid = i * OSP_IS_STRIDE_IN_FLOATS;
+			 if (inside(queryBox, vec3f(particle[pid], particle[pid + 1], particle[pid + 2]))){
+				 for (int j = 0; j < OSP_IS_STRIDE_IN_FLOATS; ++j){
+					 queried.push_back(particle[pid + j]);
+				 }
+			 }
+		 }
+         int num = queried.size() / OSP_IS_STRIDE_IN_FLOATS;
+		 std::cout << "num queried: " << num << ", sending " << queried.size() << " floats\n";
          MPI_CALL(Send(&num,1,MPI_INT,r,0,remComm));
-         MPI_CALL(Send(&queried[0],3*num,MPI_FLOAT,r,0,remComm));
+         MPI_CALL(Send(&queried[0], queried.size(), MPI_FLOAT, r, 0, remComm));
        }
      }
-#else
-    /* this variant simply distributes all its local particles equally
-       to all remote nodes; at the end of the collective operation all
-       particles will be (randomly) distributed across all remote
-       nodes */
-    for (int tgt=0;tgt<remSize;tgt++) {
-      int tgt_begin = (tgt*numParticles) / remSize;
-      int tgt_end = ((tgt+1)*numParticles) / remSize;
-      int tgt_num = tgt_end-tgt_begin;
-      MPI_CALL(Send(&tgt_num,1,MPI_INT,tgt,0,remComm));
-    }
-
-    for (int tgt=0;tgt<remSize;tgt++) {
-      int tgt_begin = (tgt*numParticles) / remSize;
-      int tgt_end = ((tgt+1)*numParticles) / remSize;
-      int tgt_num = tgt_end-tgt_begin;
-      MPI_CALL(Send(particle+tgt_begin,3*tgt_num,MPI_FLOAT,tgt,0,remComm));
-    }
-#endif
     MPI_CALL(Comm_disconnect(&remComm));
   }
 
@@ -249,7 +237,9 @@ namespace is_sim {
 
   extern "C" void ospIsTimeStep(size_t numParticles, float *particle, int strideInFloats)
   {
-    assert(strideInFloats == 3);
+	// TODO WILL: When sending attribs (stride > 3) where is this
+	// assumption violated
+    assert(strideInFloats == OSP_IS_STRIDE_IN_FLOATS);
     assert(simComm != MPI_COMM_NULL);
     
     std::lock_guard<std::mutex> lock(mutex);
@@ -258,7 +248,7 @@ namespace is_sim {
 
     for (int i=0;i<numPullRequests;i++)
       pullRequest(simRank == 0 ? newPullRequest[i] : "",
-                  numParticles,(vec3f*)particle);
+                  numParticles, particle);
     newPullRequest.clear();
   }  
 }

@@ -121,6 +121,9 @@ namespace ospray {
             myBlock.push_back(bID);
         }
   }
+  DomainGrid::~DomainGrid(){
+	  //delete[] block;
+  }
 
   DomainGrid *ospIsPullRequest(MPI_Comm comm, char *servName, int servPort,
                                const vec3i &dims, const float ghostRegionWidth)
@@ -139,6 +142,7 @@ namespace ospray {
     box3f worldBounds;
 	// Receive the world bounds from the simulation
     MPI_CALL(Bcast(&worldBounds,6,MPI_FLOAT,0,simComm));
+	// TODO WILL: We can send the stride after the world bounds
 	if (rank == 0){
 		std::cout << "worldBounds = " << worldBounds.lower << " to " << worldBounds.upper << "\n";
 	}
@@ -160,12 +164,17 @@ namespace ospray {
         MPI_CALL(Recv(&numFrom[s],1,MPI_INT,s,0,simComm,MPI_STATUS_IGNORE));
         numParticles += numFrom[s];
       }
-      block.particle.resize(numParticles);
+	  std::cout << "recieving " << numParticles << " particles\n";
+      block.particle.resize(numParticles * OSP_IS_STRIDE_IN_FLOATS);
       size_t sum = 0;
       for (int s=0;s<numSimRanks;s++) {
-        MPI_CALL(Recv(&block.particle[sum],3*numFrom[s],MPI_FLOAT,s,0,
-                      simComm,MPI_STATUS_IGNORE));
+		  std::cout << "numFrom[" << s << "] = " << numFrom[s]
+			  << ", expecting " << OSP_IS_STRIDE_IN_FLOATS * numFrom[s] << " floats\n";
+        MPI_CALL(Recv(&block.particle[sum * OSP_IS_STRIDE_IN_FLOATS],
+					OSP_IS_STRIDE_IN_FLOATS * numFrom[s],
+					MPI_FLOAT, s, 0, simComm, MPI_STATUS_IGNORE));
         sum += numFrom[s];
+		std::cout << "done with sim rank " << s << "\n";
       }
     }
 
