@@ -19,8 +19,9 @@
 #include <atomic>
 #include <thread>
 #include "ospray/geometry/Geometry.h"
-#include "apps/ParticleModel.h"
+#include "ospray/transferFunction/TransferFunction.h"
 // pkd builder library
+#include "apps/ParticleModel.h"
 #include "apps/PartiKD.h"
 
 namespace ospray {
@@ -40,12 +41,7 @@ namespace ospray {
 
     Parameters:
     <dl>
-    <dt><code>float        radius = 0.01f</code></dt><dd>Base radius common to all InSituSpheres if 'offset_radius' is not used</dd>
-    <dt><code>int32        materialID = 0</code></dt><dd>Material ID common to all InSituSpheres if 'offset_materialID' is not used</dd>
-    <dt><code>int32        bytes_per_sphere = 3*sizeof(float)</code></dt><dd>Size (in bytes) of each sphere in the data array.</dd>
-    <dt><code>int32        offset_center = 0</code></dt><dd>Offset (in bytes) of each sphere's 'vec3f center' value within the sphere</dd>
-    <dt><code>int32        offset_radius = -1</code></dt><dd>Offset (in bytes) of each sphere's 'float radius' value within each sphere. Setting this value to -1 means that there is no per-sphere radius value, and that all InSituSpheres should use the (shared) 'radius' value instead</dd>
-    <dt><code>int32        offset_materialID = -1</code></dt><dd>Offset (in bytes) of each sphere's 'int materialID' value within each sphere. Setting this value to -1 means that there is no per-sphere material ID, and that all InSituSpheres share the same per-geometry 'materialID'</dd>
+    <dt><code>float        radius = 0.01f</code></dt><dd>Base radius common to all InSituSpheres</dd>
     <dt><code>Data<float>  InSituSpheres</code></dt><dd> Array of data elements.</dd>
     </dl>
 
@@ -65,12 +61,12 @@ namespace ospray {
     /*! \brief integrates this geometry's primitives into the respective
       model's acceleration structure */
     virtual void finalize(Model *model);
-    box3f getBounds() const;
+	box3f getBounds() const;
 
-    float radius;   //!< default radius, if no per-sphere radius was specified.
-    
-    size_t numSpheres;
-    size_t bytesPerSphere; //!< num bytes per sphere
+	//! radius for the spheres
+    float radius;   
+	//! Transfer function used to color the spheres
+    Ref<TransferFunction> transferFunction;
 
 	/*! We have two pkds that we swap between, once containing
 	 * the data being rendered and one with the data coming from
@@ -87,6 +83,7 @@ namespace ospray {
 
     InSituSpheres();
     ~InSituSpheres();
+	virtual void dependencyGotChanged(ManagedObject *object);
 
   private:
 	// Repeatedly poll from the simulation until poller_exit 

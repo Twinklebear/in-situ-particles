@@ -59,14 +59,22 @@ namespace ospray {
 	  return b;
   }
 
+  void InSituSpheres::dependencyGotChanged(ManagedObject *object)
+  {
+	  ispc::PartiKDGeometry_updateTransferFunction(this->getIE(), transferFunction->getIE());
+  }
+
   void InSituSpheres::finalize(Model *model) 
   {
 	  radius = getParam1f("radius",0.01f);
-	  bytesPerSphere = OSP_IS_STRIDE_IN_FLOATS;
 	  server = getParamString("server_name", NULL);
+	  transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
 	  port = getParam1i("port", -1);
 	  if (server.empty() || port == -1){
 		  throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
+	  }
+	  if (transferFunction){
+		  transferFunction->registerListener(this);
 	  }
 	  // Do a single blocking poll to get an initial timestep to render if the thread
 	  // hasn't been started
@@ -91,6 +99,9 @@ namespace ospray {
 		  size_t numInnerNodes = pkd_active.numInnerNodes;
 
 		  attribute = particle_model->getAttribute(attribute_name)->value.data();
+		  std::cout << "# of attribs = " << particle_model->getAttribute(attribute_name)->value.size()
+			  << "\n";
+		  assert(numParticles == particle_model->getAttribute(attribute_name)->value.size());
 
 		  std::cout << "#osp:pkd: found attribute, computing range and min/max bit array" << std::endl;
 		  attr_lo = attr_hi = attribute[0];
@@ -99,7 +110,7 @@ namespace ospray {
 			  attr_hi = std::max(attr_hi,attribute[i]);
 		  }
 
-		  binBits.resize(numInnerNodes);
+		  binBits.resize(numInnerNodes, 0);
 		  size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
 		  std::cout << "#osp:pkd: num bytes in range tree " << numBytesRangeTree << std::endl;
 		  for (long long pID=numInnerNodes-1;pID>=0;--pID) {
@@ -124,16 +135,15 @@ namespace ospray {
 
 	  assert(particle_model);
 	  ispc::PartiKDGeometry_set(getIE(), model->getIE(), false, false,
-			  // TODO: Transfer function
-			  /*transferFunction ? transferFunction->getIE() : NULL,*/ NULL,
+			  transferFunction ? transferFunction->getIE() : NULL,
 			  radius,
 			  pkd_active.numParticles,
 			  pkd_active.numInnerNodes,
 			  (ispc::PKDParticle*)&particle_model->position[0],
-			  /*attribute,*/ NULL, // TODO: Attribs
-			  /*binBits,*/ NULL, // TODO: attribs
+			  attribute,
+			  binBits.data(),
 			  (ispc::box3f&)centerBounds, (ispc::box3f&)sphereBounds,
-			  /*attr_lo,attr_hi);*/ 0, 0); // TODO: Attribs
+			  attr_lo,attr_hi);
 
 	  // Launch the thread to poll the sim if we haven't already
 	  if (sim_poller.get_id() == std::thread::id()){
@@ -213,11 +223,10 @@ namespace ospray {
 	  }
 
 	  // We've got our positions so now send it to the ospray geometry
-	  numSpheres = model->position.size();
-	  std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = " << numSpheres
-		  << std::endl;
+	  std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = "
+		  << model->position.size() << std::endl;
 
-	  if (numSpheres >= (1ULL << 30)) {
+	  if (model->position.size() >= (1ULL << 30)) {
 		  throw std::runtime_error("#ospray::InSituSpheres: too many InSituSpheres in this "
 				  "sphere geometry. Consider splitting this "
 				  "geometry in multiple geometries with fewer "

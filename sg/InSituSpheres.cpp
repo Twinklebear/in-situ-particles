@@ -9,7 +9,7 @@
 namespace ospray {
 	namespace sg {
 		InSituSpheres::InSituSpheres() : Geometry("InSituSpheres"), radius(0.01f), geometry(NULL),
-			bounds(embree::empty), poller_exit(false)
+			bounds(embree::empty), poller_exit(false), transfer_fn(new TransferFunction())
 		{}
 		InSituSpheres::~InSituSpheres(){
 			if (geometry){
@@ -51,6 +51,10 @@ namespace ospray {
 				ospSet1f(geometry, "radius", radius);
 				ospSet1i(geometry, "port", port);
 				ospSetString(geometry, "server_name", server.c_str());
+
+				transfer_fn->render(ctx);
+				ospSetObject(geometry, "transferFunction", transfer_fn->getOSPHandle());
+
 				// TODO: The commit and additon of the geometry is performed asynchronously. So how
 				// can we tell the viewer that the bounds of the geometry have changed?
 				ospCommit(geometry);
@@ -75,6 +79,11 @@ namespace ospray {
 				lastCommitted = TimeStamp::now();
 			}
 		}
+		void InSituSpheres::setTransferFunction(Ref<TransferFunction> fn){
+			transfer_fn = fn;
+			lastModified = TimeStamp::now();
+		}
+
 		OSP_REGISTER_SG_NODE(InSituSpheres);
 	}
 }
