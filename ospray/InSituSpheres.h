@@ -68,22 +68,15 @@ namespace ospray {
     box3f getBounds() const;
 
     float radius;   //!< default radius, if no per-sphere radius was specified.
-    int32 materialID;
     
     size_t numSpheres;
     size_t bytesPerSphere; //!< num bytes per sphere
-    int64 offset_center;
-    int64 offset_radius;
-    int64 offset_materialID;
-    int64 offset_colorID;
 
-    Ref<Data> materialList;
-    void     *_materialList;
-    Ref<Data> colorData; /*!< sphere color array (vec3fa) */
 	/*! We have two pkds that we swap between, once containing
 	 * the data being rendered and one with the data coming from
 	 * the next time step & being built */
 	PartiKD pkds[2];
+	std::vector<uint32> binBitsArrays[2];
 	std::atomic<int> rendered_pkd;
 	std::string server;
 	int port;

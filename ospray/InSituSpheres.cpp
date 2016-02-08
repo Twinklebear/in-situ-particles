@@ -30,21 +30,17 @@
 #include "PKDGeometry_ispc.h"
 
 namespace ospray {
+  const std::string attribute_name = "attrib";
 
   InSituSpheres::InSituSpheres()
   {
     ispcEquivalent = ispc::PartiKDGeometry_create(this);
-    _materialList = NULL;
 	rendered_pkd = 0;
 	poller_exit = false;
   }
 
   InSituSpheres::~InSituSpheres()
   {
-    if (_materialList) {
-      free(_materialList);
-      _materialList = NULL;
-    }
 	// Tell the sim polling thread to exist and join it back
 	poller_exit = true;
 	sim_poller.join();
@@ -65,15 +61,8 @@ namespace ospray {
 
   void InSituSpheres::finalize(Model *model) 
   {
-	  radius            = getParam1f("radius",0.01f);
-	  materialID        = getParam1i("materialID",0);
-	  bytesPerSphere    = getParam1i("bytes_per_sphere",3*sizeof(float));
-	  offset_center     = getParam1i("offset_center",0);
-	  offset_radius     = getParam1i("offset_radius",-1);
-	  offset_materialID = getParam1i("offset_materialID",-1);
-	  offset_colorID    = getParam1i("offset_colorID",-1);
-	  materialList      = getParamData("materialList");
-	  colorData         = getParamData("color");
+	  radius = getParam1f("radius",0.01f);
+	  bytesPerSphere = OSP_IS_STRIDE_IN_FLOATS;
 	  server = getParamString("server_name", NULL);
 	  port = getParam1i("port", -1);
 	  if (server.empty() || port == -1){
@@ -86,26 +75,51 @@ namespace ospray {
 		  getTimeStep();
 	  }
 
-	  if (_materialList) {
-		  free(_materialList);
-		  _materialList = NULL;
-	  }
-
-	  if (materialList) {
-		  void **ispcMaterials = (void**) malloc(sizeof(void*) *
-				  materialList->numItems);
-		  for (int i=0;i<materialList->numItems;i++) {
-			  Material *m = ((Material**)materialList->data)[i];
-			  ispcMaterials[i] = m?m->getIE():NULL;
-		  }
-		  _materialList = (void*)ispcMaterials;
-	  }
-
 	  int to_render = rendered_pkd.load() % 2;
 	  PartiKD &pkd_active = pkds[to_render];
 	  ParticleModel *particle_model = pkd_active.model;
 	  const box3f centerBounds = getBounds();
 	  const box3f sphereBounds(centerBounds.lower - vec3f(radius), centerBounds.upper + vec3f(radius));
+
+	  // compute attribute mask and attrib lo/hi values
+	  float attr_lo = 0.f, attr_hi = 0.f;
+	  std::vector<uint32> &binBits = binBitsArrays[to_render];
+	  binBits.clear();
+	  float *attribute = NULL;
+	  if (particle_model->hasAttribute(attribute_name)){
+		  size_t numParticles = pkd_active.numParticles;
+		  size_t numInnerNodes = pkd_active.numInnerNodes;
+
+		  attribute = particle_model->getAttribute(attribute_name)->value.data();
+
+		  std::cout << "#osp:pkd: found attribute, computing range and min/max bit array" << std::endl;
+		  attr_lo = attr_hi = attribute[0];
+		  for (size_t i=0;i<numParticles;i++){
+			  attr_lo = std::min(attr_lo,attribute[i]);
+			  attr_hi = std::max(attr_hi,attribute[i]);
+		  }
+
+		  binBits.resize(numInnerNodes);
+		  size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
+		  std::cout << "#osp:pkd: num bytes in range tree " << numBytesRangeTree << std::endl;
+		  for (long long pID=numInnerNodes-1;pID>=0;--pID) {
+			  size_t lID = 2*pID+1;
+			  size_t rID = lID+1;
+			  uint32 lBits = 0, rBits = 0;
+			  if (rID < numInnerNodes)
+				  rBits = binBits[rID];
+			  else if (rID < numParticles)
+				  rBits = getAttributeBits(attribute[rID],attr_lo,attr_hi);
+			  if (lID < numInnerNodes)
+				  lBits = binBits[lID];
+			  else if (lID < numParticles)
+				  lBits = getAttributeBits(attribute[lID],attr_lo,attr_hi);
+			  binBits[pID] = lBits|rBits;
+		  }
+		  std::cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi
+			  << "], root bits " << (int*)(int64)binBits[0] << std::endl;
+	  }
+
 	  std::cout << "ospray::InSituSpheres: setting pkd geometry\n";
 
 	  assert(particle_model);
@@ -117,7 +131,7 @@ namespace ospray {
 			  pkd_active.numInnerNodes,
 			  (ispc::PKDParticle*)&particle_model->position[0],
 			  /*attribute,*/ NULL, // TODO: Attribs
-			  /*binBitsArray,*/ NULL, // TODO: attribs
+			  /*binBits,*/ NULL, // TODO: attribs
 			  (ispc::box3f&)centerBounds, (ispc::box3f&)sphereBounds,
 			  /*attr_lo,attr_hi);*/ 0, 0); // TODO: Attribs
 
@@ -137,8 +151,8 @@ namespace ospray {
   void InSituSpheres::getTimeStep(){
 	  std::cout << "ospray::InSituSpheres: Getting a Timestep\n";
 	  const float ghostRegionWidth = radius * 1.5f;
-	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server.c_str()), port, vec3i(2),
-			  ghostRegionWidth);
+	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server.c_str()), port,
+			  vec3i(2, 1, 1), ghostRegionWidth);
 
 	  // Get the model from pkd and allocate it if it's missing
 	  // we also have the builder forget about the model since it asserts
@@ -156,6 +170,14 @@ namespace ospray {
 	  // way to clean & reset the ParticleModel
 	  model->position.clear();
 	  model->radius = radius;
+	  // Clean up the attribute we're storing
+	  if (model->getAttribute(attribute_name)){
+		  ParticleModel::Attribute *a = model->getAttribute(attribute_name);
+		  a->value.clear();
+		  a->minValue = std::numeric_limits<float>::infinity();
+		  a->maxValue = -std::numeric_limits<float>::infinity();
+	  }
+
 	  int rank = ospray::mpi::worker.rank;
 	  int size = ospray::mpi::worker.size;
 	  if (rank == 0)
@@ -170,8 +192,14 @@ namespace ospray {
 				  const DomainGrid::Block &b = dd->getMine(mbID);
 				  std::cout << "  lo " << b.actualDomain.lower << std::endl;
 				  std::cout << "  hi " << b.actualDomain.upper << std::endl;
-				  std::cout << "  #p " << b.particle.size() << std::endl;
-				  model->position = b.particle;
+				  std::cout << "  #p " << b.particle.size() / OSP_IS_STRIDE_IN_FLOATS << std::endl;
+				  for (size_t i = 0; i < b.particle.size() / OSP_IS_STRIDE_IN_FLOATS; ++i){
+					  size_t pid = i * OSP_IS_STRIDE_IN_FLOATS;
+					  model->position.push_back(vec3f(b.particle[pid], b.particle[pid + 1], b.particle[pid + 2]));
+					  if (OSP_IS_STRIDE_IN_FLOATS == 4){
+						  model->addAttribute(attribute_name, b.particle[pid + 3]);
+					  }
+				  }
 			  }
 			  std::cout << std::flush;
 			  fflush(0);
@@ -185,7 +213,7 @@ namespace ospray {
 	  }
 
 	  // We've got our positions so now send it to the ospray geometry
-	  numSpheres = sizeof(vec3f) * model->position.size() / bytesPerSphere;
+	  numSpheres = model->position.size();
 	  std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = " << numSpheres
 		  << std::endl;
 
@@ -212,6 +240,7 @@ namespace ospray {
 		  std::cout << "Sending world bounds\n";
 		  MPI_CALL(Send(&dd->worldBounds, 6, MPI_FLOAT, 0, 1, ospray::mpi::world.comm));
 	  }
+	  //delete dd;
   }
 
   OSP_REGISTER_GEOMETRY(InSituSpheres,InSituSpheres);

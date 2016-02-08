@@ -56,5 +56,6 @@ namespace ospray {
     size_t    numParticles;
     float     particleRadius;
   };
+  uint32 getAttributeBits(float val, float lo, float hi);
   
 } // ::ospray
