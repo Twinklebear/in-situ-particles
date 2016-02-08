@@ -4,7 +4,7 @@
 #include <thread>
 #include <atomic>
 #include "sg/geometry/Geometry.h"
-#include "sg/geometry/Spheres.h"
+#include "sg/common/TransferFunction.h"
 
 namespace ospray {
 	namespace sg {

@@ -9,7 +9,7 @@
 namespace ospray {
 	namespace sg {
 		InSituSpheres::InSituSpheres() : Geometry("InSituSpheres"), radius(0.01f), geometry(NULL),
-			bounds(embree::empty), poller_exit(false), transfer_fn(new TransferFunction())
+			bounds(embree::empty), poller_exit(false), transfer_fn(NULL)
 		{}
 		InSituSpheres::~InSituSpheres(){
 			if (geometry){
@@ -47,16 +47,18 @@ namespace ospray {
 				}
 				const std::string server = reinterpret_cast<const ParamT<const std::string>*>(getParam("server_name"))->value;
 				const int port = reinterpret_cast<const ParamT<const int>*>(getParam("port"))->value;
+				transfer_fn = reinterpret_cast<ParamT<Ref<TransferFunction>>*>(getParam("transfer_function"))->value;
+				assert(transfer_fn);
 				ospSetMaterial(geometry, mat);
 				ospSet1f(geometry, "radius", radius);
 				ospSet1i(geometry, "port", port);
 				ospSetString(geometry, "server_name", server.c_str());
 
 				transfer_fn->render(ctx);
-				ospSetObject(geometry, "transferFunction", transfer_fn->getOSPHandle());
+				if (transfer_fn->getLastCommitted() >= lastCommitted){
+					ospSetObject(geometry, "transferFunction", transfer_fn->getOSPHandle());
+				}
 
-				// TODO: The commit and additon of the geometry is performed asynchronously. So how
-				// can we tell the viewer that the bounds of the geometry have changed?
 				ospCommit(geometry);
 				lastCommitted = TimeStamp::now();
 				ospAddGeometry(ctx.world->ospModel, geometry);
