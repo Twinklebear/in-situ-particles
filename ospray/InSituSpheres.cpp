@@ -66,7 +66,7 @@ namespace ospray {
 
   void InSituSpheres::finalize(Model *model) 
   {
-	  radius = getParam1f("radius",0.01f);
+	  radius = getParam1f("radius", 0.01f);
 	  server = getParamString("server_name", NULL);
 	  transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
 	  port = getParam1i("port", -1);
@@ -162,7 +162,7 @@ namespace ospray {
 	  std::cout << "ospray::InSituSpheres: Getting a Timestep\n";
 	  const float ghostRegionWidth = radius * 1.5f;
 	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server.c_str()), port,
-			  vec3i(2, 1, 1), ghostRegionWidth);
+			  vec3i(2, 2, 1), ghostRegionWidth);
 
 	  // Get the model from pkd and allocate it if it's missing
 	  // we also have the builder forget about the model since it asserts

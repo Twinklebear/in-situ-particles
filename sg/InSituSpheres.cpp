@@ -47,6 +47,7 @@ namespace ospray {
 				}
 				const std::string server = reinterpret_cast<const ParamT<const std::string>*>(getParam("server_name"))->value;
 				const int port = reinterpret_cast<const ParamT<const int>*>(getParam("port"))->value;
+				radius = reinterpret_cast<ParamT<float>*>(getParam("radius"))->value;
 				transfer_fn = reinterpret_cast<ParamT<Ref<TransferFunction>>*>(getParam("transfer_function"))->value;
 				assert(transfer_fn);
 				ospSetMaterial(geometry, mat);
