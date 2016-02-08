@@ -65,6 +65,11 @@ namespace ospray {
 
 	//! radius for the spheres
     float radius;   
+	/*! frequency (in seconds) to check for new timesteps, each timestep
+	 * query is blocking, so after getting a new timestep we'll wait
+	 * poll_rate seconds before requesting a new one. Default is 10s
+	 */
+	float poll_rate;
 	//! Transfer function used to color the spheres
     Ref<TransferFunction> transferFunction;
 

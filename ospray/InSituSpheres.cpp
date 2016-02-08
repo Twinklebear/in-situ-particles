@@ -68,6 +68,7 @@ namespace ospray {
   {
 	  radius = getParam1f("radius", 0.01f);
 	  server = getParamString("server_name", NULL);
+	  poll_rate = getParam1f("poll_rate", 10.0);
 	  transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
 	  port = getParam1i("port", -1);
 	  if (server.empty() || port == -1){
@@ -152,8 +153,10 @@ namespace ospray {
 	  }
   }
   void InSituSpheres::pollSimulation(){
+	  std::cout << "ospray::InSituSpheres: Polling for new timesteps every " << poll_rate << "s\n";
+	  const auto millis = std::chrono::milliseconds(static_cast<std::chrono::milliseconds::rep>(poll_rate * 1000.0));
 	  while (!poller_exit){
-		  std::this_thread::sleep_for(std::chrono::seconds(10));
+		  std::this_thread::sleep_for(millis);
 		  std::cout << "ospray::InSituSpheres: THREAD polling for new timestep\n";
 		  getTimeStep();
 	  }
