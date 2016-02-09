@@ -72,6 +72,7 @@ namespace ospray {
 	float poll_rate;
 	//! Transfer function used to color the spheres
     Ref<TransferFunction> transferFunction;
+	vec3i grid;
 
 	/*! We have two pkds that we swap between, once containing
 	 * the data being rendered and one with the data coming from

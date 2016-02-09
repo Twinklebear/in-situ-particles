@@ -17,6 +17,7 @@
 #undef NDEBUG
 
 #include <iostream>
+#include <cstdio>
 #include <chrono>
 // ospray
 #include "InSituSpheres.h"
@@ -80,6 +81,11 @@ namespace ospray {
 	  // Do a single blocking poll to get an initial timestep to render if the thread
 	  // hasn't been started
 	  if (sim_poller.get_id() == std::thread::id()){
+		  const char *osp_data_parallel = getenv("OSPRAY_DATA_PARALLEL");
+		  if (!osp_data_parallel || std::sscanf(osp_data_parallel, "%dx%dx%d", &grid.x, &grid.y, &grid.z) != 3){
+			  throw std::runtime_error("#ospray:geometry/InSituSpheres: Must set OSPRAY_DATA_PARALLEL=XxYxZ"
+					  " for data parallel rendering!");
+		  }
 		  std::cout << "ospray::InSituSpheres: Making blocking initial query\n";
 		  getTimeStep();
 	  }
@@ -164,8 +170,9 @@ namespace ospray {
   void InSituSpheres::getTimeStep(){
 	  std::cout << "ospray::InSituSpheres: Getting a Timestep\n";
 	  const float ghostRegionWidth = radius * 1.5f;
+	  // TODO: Read from OSP_DATA_PARALLEL to configure the grid dimensions
 	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server.c_str()), port,
-			  vec3i(2, 2, 1), ghostRegionWidth);
+			  grid, ghostRegionWidth);
 
 	  // Get the model from pkd and allocate it if it's missing
 	  // we also have the builder forget about the model since it asserts
