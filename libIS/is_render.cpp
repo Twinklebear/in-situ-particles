@@ -164,17 +164,13 @@ namespace ospray {
         MPI_CALL(Recv(&numFrom[s],1,MPI_INT,s,0,simComm,MPI_STATUS_IGNORE));
         numParticles += numFrom[s];
       }
-	  std::cout << "recieving " << numParticles << " particles\n";
       block.particle.resize(numParticles * OSP_IS_STRIDE_IN_FLOATS);
       size_t sum = 0;
       for (int s=0;s<numSimRanks;s++) {
-		  std::cout << "numFrom[" << s << "] = " << numFrom[s]
-			  << ", expecting " << OSP_IS_STRIDE_IN_FLOATS * numFrom[s] << " floats\n";
         MPI_CALL(Recv(&block.particle[sum * OSP_IS_STRIDE_IN_FLOATS],
 					OSP_IS_STRIDE_IN_FLOATS * numFrom[s],
 					MPI_FLOAT, s, 0, simComm, MPI_STATUS_IGNORE));
         sum += numFrom[s];
-		std::cout << "done with sim rank " << s << "\n";
       }
     }
 
