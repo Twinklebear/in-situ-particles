@@ -211,7 +211,6 @@ namespace is_sim {
 			 }
 		 }
          int num = queried.size() / OSP_IS_STRIDE_IN_FLOATS;
-		 std::cout << "num queried: " << num << ", sending " << queried.size() << " floats\n";
          MPI_CALL(Send(&num,1,MPI_INT,r,0,remComm));
          MPI_CALL(Send(&queried[0], queried.size(), MPI_FLOAT, r, 0, remComm));
        }
