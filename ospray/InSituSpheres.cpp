@@ -144,7 +144,7 @@ namespace ospray {
 	  ispc::PartiKDGeometry_set(getIE(), model->getIE(), false, false,
 			  transferFunction ? transferFunction->getIE() : NULL,
 			  radius,
-			  pkd_active.numParticles,
+			  pkd_active.numParticles, // TODO: Handle no particles
 			  pkd_active.numInnerNodes,
 			  (ispc::PKDParticle*)&particle_model->position[0],
 			  attribute,
@@ -170,7 +170,6 @@ namespace ospray {
   void InSituSpheres::getTimeStep(){
 	  std::cout << "ospray::InSituSpheres: Getting a Timestep\n";
 	  const float ghostRegionWidth = radius * 1.5f;
-	  // TODO: Read from OSP_DATA_PARALLEL to configure the grid dimensions
 	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server.c_str()), port,
 			  grid, ghostRegionWidth);
 
@@ -259,7 +258,7 @@ namespace ospray {
 		  std::cout << "Sending world bounds\n";
 		  MPI_CALL(Send(&dd->worldBounds, 6, MPI_FLOAT, 0, 1, ospray::mpi::world.comm));
 	  }
-	  //delete dd;
+	  delete dd;
   }
 
   OSP_REGISTER_GEOMETRY(InSituSpheres,InSituSpheres);

@@ -122,7 +122,7 @@ namespace ospray {
         }
   }
   DomainGrid::~DomainGrid(){
-	  //delete[] block;
+	  delete[] block;
   }
 
   DomainGrid *ospIsPullRequest(MPI_Comm comm, char *servName, int servPort,
