@@ -26,5 +26,5 @@ OSPRAY_ADD_LIBRARY(ospray_sg_pkd${OSPRAY_LIB_SUFFIX} SHARED
 TARGET_LINK_LIBRARIES(ospray_sg_pkd${OSPRAY_LIB_SUFFIX} 
   ospray${OSPRAY_LIB_SUFFIX}
   ospray_sg${OSPRAY_LIB_SUFFIX}
-  )
+  ${MPI_LIBRARIES})
 # ------------------------------------------------------------
