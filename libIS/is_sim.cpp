@@ -165,6 +165,7 @@ namespace is_sim {
       cout << "#is_sim: comm_connect on " << portName << endl;
     
     MPI_CALL(Comm_connect(const_cast<char*>(portName.c_str()),MPI_INFO_NULL,0,simComm,&remComm));
+	std::cout << "#is_sim: comm connected\n";
     MPI_CALL(Comm_set_errhandler(remComm,MPI_ERRORS_RETURN));
     int remSize;
     MPI_CALL(Comm_remote_size(remComm,&remSize));

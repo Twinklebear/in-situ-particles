@@ -106,11 +106,8 @@ namespace ospray {
 		  size_t numInnerNodes = pkd_active.numInnerNodes;
 
 		  attribute = particle_model->getAttribute(attribute_name)->value.data();
-		  std::cout << "# of attribs = " << particle_model->getAttribute(attribute_name)->value.size()
-			  << "\n";
 		  assert(numParticles == particle_model->getAttribute(attribute_name)->value.size());
 
-		  std::cout << "#osp:pkd: found attribute, computing range and min/max bit array" << std::endl;
 		  attr_lo = attr_hi = attribute[0];
 		  for (size_t i=0;i<numParticles;i++){
 			  attr_lo = std::min(attr_lo,attribute[i]);
@@ -119,7 +116,6 @@ namespace ospray {
 
 		  binBits.resize(numInnerNodes, 0);
 		  size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
-		  std::cout << "#osp:pkd: num bytes in range tree " << numBytesRangeTree << std::endl;
 		  for (long long pID=numInnerNodes-1;pID>=0;--pID) {
 			  size_t lID = 2*pID+1;
 			  size_t rID = lID+1;
@@ -139,7 +135,6 @@ namespace ospray {
 	  }
 
 	  std::cout << "ospray::InSituSpheres: setting pkd geometry\n";
-
 	  assert(particle_model);
 	  ispc::PartiKDGeometry_set(getIE(), model->getIE(), false, false,
 			  transferFunction ? transferFunction->getIE() : NULL,
@@ -168,8 +163,8 @@ namespace ospray {
 	  }
   }
   void InSituSpheres::getTimeStep(){
-	  std::cout << "ospray::InSituSpheres: Getting a Timestep\n";
 	  const float ghostRegionWidth = radius * 1.5f;
+	  std::cout << "World rank is " << ospray::mpi::world.rank << "\n";
 	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server.c_str()), port,
 			  grid, ghostRegionWidth);
 
@@ -215,6 +210,7 @@ namespace ospray {
 				  for (size_t i = 0; i < b.particle.size() / OSP_IS_STRIDE_IN_FLOATS; ++i){
 					  size_t pid = i * OSP_IS_STRIDE_IN_FLOATS;
 					  model->position.push_back(vec3f(b.particle[pid], b.particle[pid + 1], b.particle[pid + 2]));
+					  // TODO WILL: If we want to color by render node rank we should push back 'rank' here
 					  if (OSP_IS_STRIDE_IN_FLOATS == 4){
 						  model->addAttribute(attribute_name, b.particle[pid + 3]);
 					  }
@@ -255,7 +251,6 @@ namespace ospray {
 	  // Tell the render process the bounds of the geometry in the world
 	  // and that we're dirty and should be updated
 	  if (ospray::mpi::world.rank == 1){
-		  std::cout << "Sending world bounds\n";
 		  MPI_CALL(Send(&dd->worldBounds, 6, MPI_FLOAT, 0, 1, ospray::mpi::world.comm));
 	  }
 	  delete dd;

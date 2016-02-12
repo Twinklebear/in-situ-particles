@@ -53,6 +53,7 @@ namespace ospray {
 				assert(transfer_fn);
 				ospSetMaterial(geometry, mat);
 				ospSet1f(geometry, "radius", radius);
+				ospSet1f(geometry, "poll_rate", poll_rate);
 				ospSet1i(geometry, "port", port);
 				ospSetString(geometry, "server_name", server.c_str());
 
