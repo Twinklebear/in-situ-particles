@@ -7,4 +7,5 @@
 // simulation being rendered. The renderer actually renders more than this
 // due to the ghost zones.
 #define OSP_IS_PRINT_TOTAL_PARTICLES
+#define OSP_IS_ENABLED 1
 
