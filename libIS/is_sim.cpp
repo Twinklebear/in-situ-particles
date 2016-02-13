@@ -16,7 +16,7 @@
 #include <thread>
 #include <mutex>
 #include <vector>
-
+#include <chrono>
 
 #include "is_common.h"
 #include "ospray/common/OSPCommon.h"
@@ -184,6 +184,14 @@ namespace is_sim {
      MPI_CALL(Allreduce(&myBounds.lower,&allBounds.lower,3,MPI_FLOAT,MPI_MIN,simComm));
      MPI_CALL(Allreduce(&myBounds.upper,&allBounds.upper,3,MPI_FLOAT,MPI_MAX,simComm));
 
+#ifdef OSP_IS_PRINT_TOTAL_PARTICLES
+	 size_t totalParticles = 0;
+	 MPI_CALL(Allreduce(&numParticles, &totalParticles, 1, MPI_UINT64_T, MPI_SUM, simComm));
+	 if (simRank == 0){
+		 cout << "#is_sim: Total number of particles = " << totalParticles << "\n";
+	 }
+#endif
+
      PRINT(myBounds);
 
      // now, send reduced bounds to remote group
@@ -243,6 +251,7 @@ namespace is_sim {
     assert(simComm != MPI_COMM_NULL);
     
     std::lock_guard<std::mutex> lock(mutex);
+	auto start = std::chrono::high_resolution_clock::now();
     int numPullRequests = newPullRequest.size();
     MPI_CALL(Bcast(&numPullRequests,1,MPI_INT,0,simComm));
 
@@ -250,5 +259,8 @@ namespace is_sim {
       pullRequest(simRank == 0 ? newPullRequest[i] : "",
                   numParticles, particle);
     newPullRequest.clear();
+	auto end = std::chrono::high_resolution_clock::now();
+	auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+	std::cout << "Responding to all pull requests took " << dur.count() << "ms\n";
   }  
 }

@@ -16,8 +16,10 @@ namespace ospray {
 				ospRelease(geometry);
 				geometry = NULL;
 			}
-			poller_exit = true;
-			polling_thread.join();
+			if (polling_thread.get_id() != std::thread::id()){
+				poller_exit = true;
+				polling_thread.join();
+			}
 		}
 		box3f InSituSpheres::getBounds(){
 			return bounds;
