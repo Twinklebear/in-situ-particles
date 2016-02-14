@@ -38,6 +38,7 @@ namespace ospray {
     ispcEquivalent = ispc::PartiKDGeometry_create(this);
 	rendered_pkd = 0;
 	poller_exit = false;
+	radius = -1;
   }
 
   InSituSpheres::~InSituSpheres()
@@ -67,11 +68,13 @@ namespace ospray {
 
   void InSituSpheres::finalize(Model *model) 
   {
-	  radius = getParam1f("radius", 0.01f);
-	  server = getParamString("server_name", NULL);
-	  poll_rate = getParam1f("poll_rate", 10.0);
-	  transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
-	  port = getParam1i("port", -1);
+	  if (radius < 0){
+		  radius = getParam1f("radius", 0.01f);
+		  server = getParamString("server_name", NULL);
+		  poll_rate = getParam1f("poll_rate", 10.0);
+		  transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
+		  port = getParam1i("port", -1);
+	  }
 	  if (server.empty() || port == -1){
 		  throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
 	  }
@@ -165,7 +168,7 @@ namespace ospray {
   void InSituSpheres::getTimeStep(){
 	  const float ghostRegionWidth = radius * 1.5f;
 	  std::cout << "World rank is " << ospray::mpi::world.rank << "\n";
-	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, const_cast<char*>(server.c_str()), port,
+	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, server.c_str(), port,
 			  grid, ghostRegionWidth);
 
 	  // Get the model from pkd and allocate it if it's missing

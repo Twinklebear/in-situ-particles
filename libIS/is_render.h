@@ -37,7 +37,7 @@ namespace ospray {
 
 
   /*! data distributed particles */
-  DomainGrid *ospIsPullRequest(MPI_Comm comm, char *servName, int servPort,
+  DomainGrid *ospIsPullRequest(MPI_Comm comm, const char *servName, int servPort,
                                const vec3i &dims, const float ghostRegionWidth);
 }
 

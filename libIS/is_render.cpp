@@ -30,11 +30,11 @@ namespace ospray {
 
   int numSimRanks=-1;
 
-  MPI_Comm establishConnection(char *servName, int servPort)
+  MPI_Comm establishConnection(const char *servName, int servPort)
   {
     MPI_Comm simComm = MPI_COMM_NULL;
     if (rank == 0)
-      cout << "is_render: connecting to is_sim" << endl;
+      cout << "is_render: connecting to is_sim on " << servName << endl;
     MPI_CALL(Barrier(ownComm));
     
     int sockfd = -1;
@@ -125,7 +125,7 @@ namespace ospray {
 	  delete[] block;
   }
 
-  DomainGrid *ospIsPullRequest(MPI_Comm comm, char *servName, int servPort,
+  DomainGrid *ospIsPullRequest(MPI_Comm comm, const char *servName, int servPort,
                                const vec3i &dims, const float ghostRegionWidth)
   {
     MPI_CALL(Comm_dup(comm,&ownComm));
