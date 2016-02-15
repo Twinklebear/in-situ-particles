@@ -79,6 +79,7 @@ namespace ospray {
 	 * the next time step & being built */
 	PartiKD pkds[2];
 	std::vector<uint32> binBitsArrays[2];
+	box3f actualBounds[2];
 	std::atomic<int> rendered_pkd;
 	std::string server;
 	int port;
