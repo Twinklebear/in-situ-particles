@@ -109,21 +109,22 @@ namespace ospray {
 		  attribute = particle_model->getAttribute(attribute_name)->value.data();
 		  assert(numParticles == particle_model->getAttribute(attribute_name)->value.size());
 
+		  float local_attr_lo = 0.f, local_attr_hi = 0.f;
 #if !USE_RENDER_RANK_ATTRIB
-		  attr_lo = attr_hi = attribute[0];
+		  local_attr_lo = local_attr_hi = attribute[0];
 		  for (size_t i=0;i<numParticles;i++){
-			  attr_lo = std::min(attr_lo,attribute[i]);
-			  attr_hi = std::max(attr_hi,attribute[i]);
+			  local_attr_lo = std::min(local_attr_lo,attribute[i]);
+			  local_attr_hi = std::max(local_attr_hi,attribute[i]);
 		  }
 #else
-		  attr_lo = 0;
-		  attr_hi = static_cast<float>(ospray::mpi::worker.size);
+		  local_attr_lo = 0;
+		  local_attr_hi = static_cast<float>(ospray::mpi::worker.size);
 #endif
 		  // We need to figure out the min/max attribute range over ALL the workers
 		  // to properly color by attribute with the same transfer function. Otherwise
 		  // workers will map different values to the same color
-		  MPI_CALL(Allreduce(&attr_lo, &attr_lo, 1, MPI_FLOAT, MPI_MIN, ospray::mpi::worker.comm));
-		  MPI_CALL(Allreduce(&attr_hi, &attr_hi, 1, MPI_FLOAT, MPI_MAX, ospray::mpi::worker.comm))
+		  MPI_CALL(Allreduce(&local_attr_lo, &attr_lo, 1, MPI_FLOAT, MPI_MIN, ospray::mpi::worker.comm));
+		  MPI_CALL(Allreduce(&local_attr_hi, &attr_hi, 1, MPI_FLOAT, MPI_MAX, ospray::mpi::worker.comm))
 
 		  binBitsArray.resize(numInnerNodes, 0);
 		  size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
