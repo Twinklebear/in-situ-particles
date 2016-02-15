@@ -148,6 +148,7 @@ namespace ospray {
 			  attribute,
 			  binBits.data(),
 			  (ispc::box3f&)centerBounds, (ispc::box3f&)sphereBounds,
+			  (ispc::box3f&)actual_bounds[to_render],
 			  attr_lo,attr_hi);
 
 	  // Launch the thread to poll the sim if we haven't already
@@ -205,8 +206,10 @@ namespace ospray {
 			  std::cout << "worker rank " << r << " (global rank "
 				  << ospray::mpi::world.rank << ") : " << std::endl;
 			  for (int mbID = 0; mbID < dd->numMine(); ++mbID) {
-				  std::cout << " #" << mbID << std::endl;
+				  std::cout << " rank: " << rank << " #" << mbID << std::endl;
 				  const DomainGrid::Block &b = dd->getMine(mbID);
+				  // TODO: Is there a box union method? I guess each node only gets one box anyway atm
+				  actual_bounds[to_update] = b.actualDomain;
 				  std::cout << "  lo " << b.actualDomain.lower << std::endl;
 				  std::cout << "  hi " << b.actualDomain.upper << std::endl;
 				  std::cout << "  #p " << b.particle.size() / OSP_IS_STRIDE_IN_FLOATS << std::endl;

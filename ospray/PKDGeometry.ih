@@ -63,6 +63,11 @@ struct PartiKDGeometry {
   //! bounding box of complete particles (centerBounds+radius)
   box3f sphereBounds;
 
+  /*! bounding box of the true data, sphereBounds describes the bounds
+	of the ghost region as well */
+  box3f actualBounds;
+  
+
   /*! (maximum) particle radius */
   float particleRadius;
 
