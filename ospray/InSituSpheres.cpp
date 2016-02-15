@@ -119,6 +119,11 @@ namespace ospray {
 		  attr_lo = 0;
 		  attr_hi = static_cast<float>(ospray::mpi::worker.size);
 #endif
+		  // We need to figure out the min/max attribute range over ALL the workers
+		  // to properly color by attribute with the same transfer function. Otherwise
+		  // workers will map different values to the same color
+		  MPI_CALL(Allreduce(&attr_lo, &attr_lo, 1, MPI_FLOAT, MPI_MIN, ospray::mpi::worker.comm));
+		  MPI_CALL(Allreduce(&attr_hi, &attr_hi, 1, MPI_FLOAT, MPI_MAX, ospray::mpi::worker.comm))
 
 		  binBitsArray.resize(numInnerNodes, 0);
 		  size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
