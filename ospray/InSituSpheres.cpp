@@ -30,6 +30,8 @@
 #include "InSituSpheres_ispc.h"
 #include "PKDGeometry_ispc.h"
 
+#define USE_RENDER_RANK_ATTRIB 0
+
 namespace ospray {
   const std::string attribute_name = "attrib";
 
@@ -111,11 +113,16 @@ namespace ospray {
 		  attribute = particle_model->getAttribute(attribute_name)->value.data();
 		  assert(numParticles == particle_model->getAttribute(attribute_name)->value.size());
 
+#if !USE_RENDER_RANK_ATTRIB
 		  attr_lo = attr_hi = attribute[0];
 		  for (size_t i=0;i<numParticles;i++){
 			  attr_lo = std::min(attr_lo,attribute[i]);
 			  attr_hi = std::max(attr_hi,attribute[i]);
 		  }
+#else
+		  attr_lo = 0;
+		  attr_hi = static_cast<float>(ospray::mpi::worker.size);
+#endif
 
 		  binBits.resize(numInnerNodes, 0);
 		  size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
@@ -148,7 +155,6 @@ namespace ospray {
 			  attribute,
 			  binBits.data(),
 			  (ispc::box3f&)centerBounds, (ispc::box3f&)sphereBounds,
-			  (ispc::box3f&)actual_bounds[to_render],
 			  attr_lo,attr_hi);
 
 	  // Launch the thread to poll the sim if we haven't already
@@ -208,8 +214,6 @@ namespace ospray {
 			  for (int mbID = 0; mbID < dd->numMine(); ++mbID) {
 				  std::cout << " rank: " << rank << " #" << mbID << std::endl;
 				  const DomainGrid::Block &b = dd->getMine(mbID);
-				  // TODO: Is there a box union method? I guess each node only gets one box anyway atm
-				  actual_bounds[to_update] = b.actualDomain;
 				  std::cout << "  lo " << b.actualDomain.lower << std::endl;
 				  std::cout << "  hi " << b.actualDomain.upper << std::endl;
 				  std::cout << "  #p " << b.particle.size() / OSP_IS_STRIDE_IN_FLOATS << std::endl;
@@ -218,7 +222,11 @@ namespace ospray {
 					  model->position.push_back(vec3f(b.particle[pid], b.particle[pid + 1], b.particle[pid + 2]));
 					  // TODO WILL: If we want to color by render node rank we should push back 'rank' here
 					  if (OSP_IS_STRIDE_IN_FLOATS == 4){
+#if !USE_RENDER_RANK_ATTRIB
 						  model->addAttribute(attribute_name, b.particle[pid + 3]);
+#else
+						  model->addAttribute(attribute_name, rank);
+#endif
 					  }
 				  }
 			  }

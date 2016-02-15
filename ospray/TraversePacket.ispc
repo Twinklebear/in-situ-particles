@@ -329,15 +329,7 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
                                 uniform bool isShadowRay)
 {
   float t_in = ray.t0, t_out = ray.t;
-  if (isShadowRay){
-	  intersectBox(ray,self->sphereBounds,t_in,t_out);
-  } else {
-	  // WILL: If it's not a shadow/occlusion ray we don't want to intersect
-	  // against particles in the ghost domain as some other node is rendering
-	  // them. If we did our rendered regions would no longer be disjoin and
-	  // we'd see artifacts when compositing
-	  intersectBox(ray,self->actualBounds,t_in,t_out);
-  }
+  intersectBox(ray,self->sphereBounds,t_in,t_out);
 
   if (t_out < t_in)
     return;
