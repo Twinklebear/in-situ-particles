@@ -43,7 +43,8 @@ namespace ospray {
   InSituSpheres::~InSituSpheres()
   {
 	  std::cout << "ospray::geometry::~InSituSpheres\n";
-	  // Clean up the old particle model
+	  // It seems like this isn't called when we commit? Yet I thought
+	  // we were deleting ourselves on accident?
 	  delete pkd->model;
   }
 
@@ -72,6 +73,10 @@ namespace ospray {
 	  transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
 	  port = getParam1i("port", -1);
 	  pkd = (PartiKD*)getParamObject("pkd", NULL);
+	  ParticleModel *old_particles = (ParticleModel*)getVoidPtr("old_particles", NULL);
+	  if (old_particles){
+		  delete old_particles;
+	  }
 	  if (server.empty() || port == -1){
 		  throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
 	  }
@@ -239,6 +244,8 @@ namespace ospray {
 	  // If we don't have a pkd to show, show this one (aka this is the first blocking call)
 	  if (!pkd){
 		  pkd = pkd_build;
+	  } else {
+		  findParam("old_particles", 1)->set(pkd->model);
 	  }
 	  delete dd;
 	  // Wait for all workers to finish building the pkd
