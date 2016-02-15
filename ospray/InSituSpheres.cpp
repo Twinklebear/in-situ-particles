@@ -38,24 +38,20 @@ namespace ospray {
   InSituSpheres::InSituSpheres()
   {
     ispcEquivalent = ispc::PartiKDGeometry_create(this);
-	rendered_pkd = 0;
-	poller_exit = false;
-	radius = -1;
   }
 
   InSituSpheres::~InSituSpheres()
   {
-	// Tell the sim polling thread to exist and join it back
-	poller_exit = true;
-	sim_poller.join();
+	  std::cout << "ospray::geometry::~InSituSpheres\n";
+	  // Clean up the old particle model
+	  delete pkd->model;
   }
 
   box3f InSituSpheres::getBounds() const
   {
-	  int to_render = rendered_pkd.load() % 2;
-	  ParticleModel *model = pkds[to_render].model;
 	  box3f b = empty;
-	  if (model != NULL){
+	  if (pkd){
+		  ParticleModel *model = pkd->model;
 		  for (size_t i = 0; i < model->position.size(); ++i){
 			  b.extend(model->position[i]);
 		  }
@@ -70,46 +66,40 @@ namespace ospray {
 
   void InSituSpheres::finalize(Model *model) 
   {
-	  if (radius < 0){
-		  radius = getParam1f("radius", 0.01f);
-		  server = getParamString("server_name", NULL);
-		  poll_rate = getParam1f("poll_rate", 10.0);
-		  transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
-		  port = getParam1i("port", -1);
-		  if (server.empty() || port == -1){
-			  throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
-		  }
-		  if (transferFunction){
-			  transferFunction->registerListener(this);
-		  }
+	  radius = getParam1f("radius", 0.01f);
+	  server = getParamString("server_name", NULL);
+	  poll_delay = getParam1f("poll_rate", 10.0);
+	  transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
+	  port = getParam1i("port", -1);
+	  pkd = (PartiKD*)getParamObject("pkd", NULL);
+	  if (server.empty() || port == -1){
+		  throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
+	  }
+	  if (transferFunction){
+		  transferFunction->registerListener(this);
+	  }
+	  const char *osp_data_parallel = getenv("OSPRAY_DATA_PARALLEL");
+	  if (!osp_data_parallel || std::sscanf(osp_data_parallel, "%dx%dx%d", &grid.x, &grid.y, &grid.z) != 3){
+		  throw std::runtime_error("#ospray:geometry/InSituSpheres: Must set OSPRAY_DATA_PARALLEL=XxYxZ"
+				  " for data parallel rendering!");
 	  }
 	  // Do a single blocking poll to get an initial timestep to render if the thread
 	  // hasn't been started
-	  if (sim_poller.get_id() == std::thread::id()){
-		  const char *osp_data_parallel = getenv("OSPRAY_DATA_PARALLEL");
-		  if (!osp_data_parallel || std::sscanf(osp_data_parallel, "%dx%dx%d", &grid.x, &grid.y, &grid.z) != 3){
-			  throw std::runtime_error("#ospray:geometry/InSituSpheres: Must set OSPRAY_DATA_PARALLEL=XxYxZ"
-					  " for data parallel rendering!");
-		  }
+	  if (!pkd){
 		  std::cout << "ospray::InSituSpheres: Making blocking initial query\n";
 		  getTimeStep();
 	  }
 
-	  int to_render = rendered_pkd.load() % 2;
-	  PartiKD &pkd_active = pkds[to_render];
-	  ParticleModel *particle_model = pkd_active.model;
+	  ParticleModel *particle_model = pkd->model;
 	  const box3f centerBounds = getBounds();
 	  const box3f sphereBounds(centerBounds.lower - vec3f(radius), centerBounds.upper + vec3f(radius));
-	  const box3f actualSphereBounds = actualBounds[to_render];
 
 	  // compute attribute mask and attrib lo/hi values
 	  float attr_lo = 0.f, attr_hi = 0.f;
-	  std::vector<uint32> &binBits = binBitsArrays[to_render];
-	  binBits.clear();
 	  float *attribute = NULL;
 	  if (particle_model->hasAttribute(attribute_name)){
-		  size_t numParticles = pkd_active.numParticles;
-		  size_t numInnerNodes = pkd_active.numInnerNodes;
+		  size_t numParticles = pkd->numParticles;
+		  size_t numInnerNodes = pkd->numInnerNodes;
 
 		  attribute = particle_model->getAttribute(attribute_name)->value.data();
 		  assert(numParticles == particle_model->getAttribute(attribute_name)->value.size());
@@ -125,24 +115,24 @@ namespace ospray {
 		  attr_hi = static_cast<float>(ospray::mpi::worker.size);
 #endif
 
-		  binBits.resize(numInnerNodes, 0);
+		  binBitsArray.resize(numInnerNodes, 0);
 		  size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
 		  for (long long pID=numInnerNodes-1;pID>=0;--pID) {
 			  size_t lID = 2*pID+1;
 			  size_t rID = lID+1;
 			  uint32 lBits = 0, rBits = 0;
 			  if (rID < numInnerNodes)
-				  rBits = binBits[rID];
+				  rBits = binBitsArray[rID];
 			  else if (rID < numParticles)
 				  rBits = getAttributeBits(attribute[rID],attr_lo,attr_hi);
 			  if (lID < numInnerNodes)
-				  lBits = binBits[lID];
+				  lBits = binBitsArray[lID];
 			  else if (lID < numParticles)
 				  lBits = getAttributeBits(attribute[lID],attr_lo,attr_hi);
-			  binBits[pID] = lBits|rBits;
+			  binBitsArray[pID] = lBits|rBits;
 		  }
 		  std::cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi
-			  << "], root bits " << (int*)(int64)binBits[0] << std::endl;
+			  << "], root bits " << (int*)(int64)binBitsArray[0] << std::endl;
 	  }
 
 	  std::cout << "ospray::InSituSpheres: setting pkd geometry\n";
@@ -150,29 +140,26 @@ namespace ospray {
 	  ispc::PartiKDGeometry_set(getIE(), model->getIE(), false, false,
 			  transferFunction ? transferFunction->getIE() : NULL,
 			  radius,
-			  pkd_active.numParticles, // TODO: Handle no particles
-			  pkd_active.numInnerNodes,
+			  pkd->numParticles, // TODO: Handle no particles
+			  pkd->numInnerNodes,
 			  (ispc::PKDParticle*)&particle_model->position[0],
 			  attribute,
-			  binBits.data(),
+			  binBitsArray.data(),
 			  (ispc::box3f&)centerBounds, (ispc::box3f&)sphereBounds,
-			  (ispc::box3f&)actualSphereBounds,
+			  (ispc::box3f&)sphereBounds,
 			  attr_lo,attr_hi);
 
 	  // Launch the thread to poll the sim if we haven't already
-	  if (sim_poller.get_id() == std::thread::id()){
-		  std::cout << "ospray::InSituSpheres: launching background polling thread\n";
-		  sim_poller = std::thread([&]{ pollSimulation(); });
-	  }
+	  std::cout << "ospray::InSituSpheres: launching background polling thread\n";
+	  auto sim_poller = std::thread([&]{ pollSimulation(); });
+	  sim_poller.detach();
   }
   void InSituSpheres::pollSimulation(){
-	  std::cout << "ospray::InSituSpheres: Polling for new timesteps every " << poll_rate << "s\n";
-	  const auto millis = std::chrono::milliseconds(static_cast<std::chrono::milliseconds::rep>(poll_rate * 1000.0));
-	  while (!poller_exit){
-		  std::this_thread::sleep_for(millis);
-		  std::cout << "ospray::InSituSpheres: THREAD polling for new timestep\n";
-		  getTimeStep();
-	  }
+	  std::cout << "ospray::InSituSpheres: Polling for new timestep after " << poll_delay << "s\n";
+	  const auto millis = std::chrono::milliseconds(static_cast<std::chrono::milliseconds::rep>(poll_delay * 1000.0));
+	  std::this_thread::sleep_for(millis);
+	  std::cout << "ospray::InSituSpheres: THREAD polling for new timestep\n";
+	  getTimeStep();
   }
   void InSituSpheres::getTimeStep(){
 	  const float ghostRegionWidth = radius * 1.5f;
@@ -183,26 +170,11 @@ namespace ospray {
 	  // Get the model from pkd and allocate it if it's missing
 	  // we also have the builder forget about the model since it asserts
 	  // that no model is set when calling build
-	  int to_update = rendered_pkd.load() + 1;
-	  std::cout << "ospray::InSituSpheres: Building new timestep on pkd " << to_update % 2 << "\n";
-	  ParticleModel *model = pkds[to_update % 2].model;
+	  std::cout << "ospray::InSituSpheres: Building new timestep\n";
+	  ParticleModel *model = new ParticleModel;
 	  // Clear the old build data
-	  pkds[to_update % 2] = PartiKD{};
-	  PartiKD &pkd_build = pkds[to_update % 2];
-	  if (!model){
-		  model = new ParticleModel;
-	  }
-	  // TODO WILL: If we store more stuff here we'll need a proper
-	  // way to clean & reset the ParticleModel
-	  model->position.clear();
+	  PartiKD *pkd_build = new PartiKD;
 	  model->radius = radius;
-	  // Clean up the attribute we're storing
-	  if (model->getAttribute(attribute_name)){
-		  ParticleModel::Attribute *a = model->getAttribute(attribute_name);
-		  a->value.clear();
-		  a->minValue = std::numeric_limits<float>::infinity();
-		  a->maxValue = -std::numeric_limits<float>::infinity();
-	  }
 
 	  int rank = ospray::mpi::worker.rank;
 	  int size = ospray::mpi::worker.size;
@@ -216,9 +188,6 @@ namespace ospray {
 			  for (int mbID = 0; mbID < dd->numMine(); ++mbID) {
 				  std::cout << " rank: " << rank << " #" << mbID << std::endl;
 				  const DomainGrid::Block &b = dd->getMine(mbID);
-				  // TODO WILL: Union of the bounding boxes? I guess for now each rank only takes
-				  // a single box so it's ok
-				  actualBounds[to_update] = b.actualDomain;
 				  std::cout << "  lo " << b.actualDomain.lower << std::endl;
 				  std::cout << "  hi " << b.actualDomain.upper << std::endl;
 				  std::cout << "  ghost lo " << b.ghostDomain.lower << std::endl;
@@ -263,9 +232,14 @@ namespace ospray {
 	  }
 	  // Build the pkd tree on the particles
 	  std::cout << "InSituSpheres: building pkd\n";
-	  pkd_build.build(model);
+	  pkd_build->build(model);
 
-	  rendered_pkd.store(to_update); 
+	  // Set the new pkd as the one to be displayed
+	  setParam("pkd", pkd_build);
+	  // If we don't have a pkd to show, show this one (aka this is the first blocking call)
+	  if (!pkd){
+		  pkd = pkd_build;
+	  }
 	  // Wait for all workers to finish building the pkd
 	  MPI_CALL(Barrier(ospray::mpi::worker.comm));
 

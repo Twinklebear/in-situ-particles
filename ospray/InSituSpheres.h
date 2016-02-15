@@ -69,24 +69,15 @@ namespace ospray {
 	 * query is blocking, so after getting a new timestep we'll wait
 	 * poll_rate seconds before requesting a new one. Default is 10s
 	 */
-	float poll_rate;
+	float poll_delay;
 	//! Transfer function used to color the spheres
     Ref<TransferFunction> transferFunction;
 	vec3i grid;
 
-	/*! We have two pkds that we swap between, once containing
-	 * the data being rendered and one with the data coming from
-	 * the next time step & being built */
-	PartiKD pkds[2];
-	std::vector<uint32> binBitsArrays[2];
-	box3f actualBounds[2];
-	std::atomic<int> rendered_pkd;
+	Ref<PartiKD> pkd;
+	std::vector<uint32> binBitsArray;
 	std::string server;
 	int port;
-	// Thread that will continue to poll new timesteps from
-	// the simulation
-	std::thread sim_poller;
-	std::atomic<bool> poller_exit;
 
     InSituSpheres();
     ~InSituSpheres();

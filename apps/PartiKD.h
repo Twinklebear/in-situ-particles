@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "ospray/geometry/Geometry.h"
 #include "ParticleModel.h"
 
 namespace ospray {
@@ -25,7 +26,7 @@ namespace ospray {
       particle model 'in place', so the order of the particles (and
       their attribute values etc) in the modle will change when this
       tree does its thing! */
-  struct PartiKD {
+  struct PartiKD : public ManagedObject {
     ParticleModel *model;
     size_t numParticles;
     size_t numInnerNodes;
