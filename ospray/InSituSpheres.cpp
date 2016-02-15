@@ -30,7 +30,7 @@
 #include "InSituSpheres_ispc.h"
 #include "PKDGeometry_ispc.h"
 
-#define USE_RENDER_RANK_ATTRIB 1
+#define USE_RENDER_RANK_ATTRIB 0
 
 namespace ospray {
   const std::string attribute_name = "attrib";
@@ -240,6 +240,7 @@ namespace ospray {
 	  if (!pkd){
 		  pkd = pkd_build;
 	  }
+	  delete dd;
 	  // Wait for all workers to finish building the pkd
 	  MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
@@ -248,7 +249,6 @@ namespace ospray {
 	  if (ospray::mpi::world.rank == 1){
 		  MPI_CALL(Send(&dd->worldBounds, 6, MPI_FLOAT, 0, 1, ospray::mpi::world.comm));
 	  }
-	  delete dd;
   }
 
   OSP_REGISTER_GEOMETRY(InSituSpheres,InSituSpheres);

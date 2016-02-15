@@ -80,7 +80,7 @@ namespace ospray {
 	int port;
 
     InSituSpheres();
-    ~InSituSpheres();
+    virtual ~InSituSpheres();
 	virtual void dependencyGotChanged(ManagedObject *object);
 
   private:
