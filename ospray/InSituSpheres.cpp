@@ -247,7 +247,6 @@ namespace ospray {
 	  } else {
 		  findParam("old_particles", 1)->set(pkd->model);
 	  }
-	  delete dd;
 	  // Wait for all workers to finish building the pkd
 	  MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
@@ -256,6 +255,7 @@ namespace ospray {
 	  if (ospray::mpi::world.rank == 1){
 		  MPI_CALL(Send(&dd->worldBounds, 6, MPI_FLOAT, 0, 1, ospray::mpi::world.comm));
 	  }
+	  delete dd;
   }
 
   OSP_REGISTER_GEOMETRY(InSituSpheres,InSituSpheres);
