@@ -76,12 +76,12 @@ namespace ospray {
 		  poll_rate = getParam1f("poll_rate", 10.0);
 		  transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
 		  port = getParam1i("port", -1);
-	  }
-	  if (server.empty() || port == -1){
-		  throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
-	  }
-	  if (transferFunction){
-		  transferFunction->registerListener(this);
+		  if (server.empty() || port == -1){
+			  throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
+		  }
+		  if (transferFunction){
+			  transferFunction->registerListener(this);
+		  }
 	  }
 	  // Do a single blocking poll to get an initial timestep to render if the thread
 	  // hasn't been started
