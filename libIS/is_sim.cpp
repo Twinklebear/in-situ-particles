@@ -260,7 +260,11 @@ namespace is_sim {
                   numParticles, particle);
     newPullRequest.clear();
 	auto end = std::chrono::high_resolution_clock::now();
-	auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	std::cout << "Responding to all pull requests took " << dur.count() << "ms\n";
+	uint64_t dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+	uint64_t max_dur = 0;
+	MPI_CALL(Allreduce(&dur, &max_dur, 1, MPI_UINT64_T, MPI_MAX, simComm));
+	if (simRank == 0){
+		std::cout << "Longest time responding to pull requests took " << max_dur << "ms\n";
+	}
   }  
 }
