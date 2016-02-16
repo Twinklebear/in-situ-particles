@@ -36,7 +36,9 @@
 inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
                                                   uniform Particle &p,
                                                   uniform primID_t primID,
-                                                  varying Ray &ray)
+                                                  varying Ray &ray,
+												  varying const float t_in_0,
+												  varying const float t_out_0)
 {
   // uniform bool dbg = false; //(rayID == 338);
   
@@ -88,12 +90,16 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
   const float t_out = (- b + srad) *rcpf(a+a);
 
   float hit_t = 0.f;
-  if (t_in > ray.t0 && t_in < ray.t) {
+  if (t_in > ray.t0 && t_in < ray.t){
     hit_t = t_in;
-  } else if (t_out > ray.t0 && t_out < ray.t) {
+  } else if (t_out > ray.t0 && t_out < ray.t){
     hit_t = t_out;
   }
   else /* miss : */ return false;
+  // Are we actually in the desired clipping bounds?
+  if (hit_t <= t_in_0 || hit_t >= t_out_0){
+	  return false;
+  }
 
   // if (dbg) print("ISEC2\n");
   // do attribute alpha test, if both attribute and transfer fct are set
@@ -197,7 +203,7 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
         // this is a leaf node - can't to to a leaf, anyway. Intersect
         // the prim, and be done with it.
         // if (dbg) print("LEAFISEC0\n");
-        PartiKDGeometry_intersectPrim(self,p,nodeID,ray);
+        PartiKDGeometry_intersectPrim(self,p,nodeID,ray, t_in_0, t_out_0);
         // if (dbg) print("LEAFISEC1\n");
         if (isShadowRay && ray.primID >= 0) return;
         break;
@@ -301,7 +307,7 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
       if (t_in < min(stackPtr->t_sphere_out,ray.t)) {
         uniform Particle p;
         getParticle(self,p,stackPtr->sphereID);
-        PartiKDGeometry_intersectPrim(self,p,stackPtr->sphereID,ray);
+        PartiKDGeometry_intersectPrim(self,p,stackPtr->sphereID,ray, t_in_0, t_out_0);
         if (isShadowRay && ray.primID >= 0) return;
       } 
       
@@ -329,7 +335,15 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
                                 uniform bool isShadowRay)
 {
   float t_in = ray.t0, t_out = ray.t;
+#if 0
+  if (isShadowRay){
+	  intersectBox(ray, self->sphereBounds, t_in, t_out);
+  } else {
+	  intersectBox(ray, self->actualBounds, t_in, t_out);
+  }
+#else
   intersectBox(ray, self->sphereBounds, t_in, t_out);
+#endif
 
   if (t_out < t_in)
     return;

@@ -30,7 +30,7 @@
 #include "InSituSpheres_ispc.h"
 #include "PKDGeometry_ispc.h"
 
-#define USE_RENDER_RANK_ATTRIB 0
+#define USE_RENDER_RANK_ATTRIB 1
 
 namespace ospray {
   const std::string attribute_name = "attrib";
@@ -98,6 +98,9 @@ namespace ospray {
 	  ParticleModel *particle_model = pkd->model;
 	  const box3f centerBounds = getBounds();
 	  const box3f sphereBounds(centerBounds.lower - vec3f(radius), centerBounds.upper + vec3f(radius));
+	  box3f actualBounds = embree::empty;
+	  actualBounds.lower = getParam3f("actual_bounds.low", sphereBounds.lower);
+	  actualBounds.upper = getParam3f("actual_bounds.up", sphereBounds.upper);
 
 	  // compute attribute mask and attrib lo/hi values
 	  float attr_lo = 0.f, attr_hi = 0.f;
@@ -146,7 +149,9 @@ namespace ospray {
 			  << "], root bits " << (int*)(int64)binBitsArray[0] << std::endl;
 	  }
 
-	  std::cout << "ospray::InSituSpheres: setting pkd geometry\n";
+	  std::cout << "ospray::InSituSpheres: setting pkd geometry\n"
+		  << "\tsphereBounds = " << sphereBounds
+		  << "\n\tactualBounds = " << actualBounds << "\n";
 	  assert(particle_model);
 	  ispc::PartiKDGeometry_set(getIE(), model->getIE(), false, false,
 			  transferFunction ? transferFunction->getIE() : NULL,
@@ -157,7 +162,7 @@ namespace ospray {
 			  attribute,
 			  binBitsArray.data(),
 			  (ispc::box3f&)centerBounds, (ispc::box3f&)sphereBounds,
-			  (ispc::box3f&)sphereBounds,
+			  (ispc::box3f&)actualBounds,
 			  attr_lo,attr_hi);
 
 	  // Launch the thread to poll the sim if we haven't already
@@ -189,6 +194,7 @@ namespace ospray {
 
 	  int rank = ospray::mpi::worker.rank;
 	  int size = ospray::mpi::worker.size;
+	  box3f actual_bounds = embree::empty;
 	  if (rank == 0)
 		  PRINT(dd->worldBounds);
 	  for (int r = 0; r < size; ++r) {
@@ -199,6 +205,7 @@ namespace ospray {
 			  for (int mbID = 0; mbID < dd->numMine(); ++mbID) {
 				  std::cout << " rank: " << rank << " #" << mbID << std::endl;
 				  const DomainGrid::Block &b = dd->getMine(mbID);
+				  actual_bounds = b.actualDomain;
 				  std::cout << "  lo " << b.actualDomain.lower << std::endl;
 				  std::cout << "  hi " << b.actualDomain.upper << std::endl;
 				  std::cout << "  ghost lo " << b.ghostDomain.lower << std::endl;
@@ -227,7 +234,6 @@ namespace ospray {
 	  if (model->position.empty()){
 		  throw std::runtime_error("#ospray:geometry/InSituSpheres: no 'InSituSpheres' data loaded from sim");
 	  }
-
 	  // We've got our positions so now send it to the ospray geometry
 	  std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = "
 		  << model->position.size() << std::endl;
@@ -247,6 +253,8 @@ namespace ospray {
 
 	  // Set the new pkd as the one to be displayed
 	  setParam("pkd", pkd_build);
+	  findParam("actual_bounds.low", 1)->set(actual_bounds.lower);
+	  findParam("actual_bounds.up", 1)->set(actual_bounds.upper);
 	  // If we don't have a pkd to show, show this one (aka this is the first blocking call)
 	  if (!pkd){
 		  pkd = pkd_build;
