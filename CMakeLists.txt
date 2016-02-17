@@ -59,6 +59,7 @@ IF (OSPRAY_MODULE_PARTIKD)
   TARGET_LINK_LIBRARIES(ospray_module_pkd${OSPRAY_LIB_SUFFIX}
 	  ospray_module_pkd_builder${OSPRAY_LIB_SUFFIX}
 	  ospray${OSPRAY_LIB_SUFFIX}
+	  ospray_xml${OSPRAY_LIB_SUFFIX}
 	  ${MPI_LIBRARIES})
   # ------------------------------------------------------------
 #  CONFIGURE_MPI()
