@@ -139,7 +139,7 @@ namespace ospray {
 
 		  binBitsArray.resize(numInnerNodes, 0);
 		  size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
-		  for (long long pID=numInnerNodes-1;pID>=0;--pID) {
+		  for (size_t pID = numInnerNodes - 1; pID >= 0; --pID) {
 			  size_t lID = 2*pID+1;
 			  size_t rID = lID+1;
 			  uint32 lBits = 0, rBits = 0;
@@ -153,8 +153,7 @@ namespace ospray {
 				  lBits = getAttributeBits(attribute[lID],attr_lo,attr_hi);
 			  binBitsArray[pID] = lBits|rBits;
 		  }
-		  std::cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi
-			  << "], root bits " << (int*)(int64)binBitsArray[0] << std::endl;
+		  std::cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi << "]\n";
 	  }
 
 	  std::cout << "ospray::InSituSpheres: setting pkd geometry\n"
