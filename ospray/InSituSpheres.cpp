@@ -47,7 +47,10 @@ namespace ospray {
 	  std::cout << "ospray::geometry::~InSituSpheres\n";
 	  // It seems like this isn't called when we commit? Yet I thought
 	  // we were deleting ourselves on accident?
-	  delete pkd->model;
+	  if (pkd){
+		  delete pkd->model;
+		  delete pkd;
+	  }
   }
 
   box3f InSituSpheres::getBounds() const
