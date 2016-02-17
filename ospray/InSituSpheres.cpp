@@ -201,6 +201,7 @@ namespace ospray {
 	  if (rank == 0){
 		  PRINT(dd->worldBounds);
 		  std::cout << "World comm: " << std::hex << ospray::mpi::world.comm
+			  << ", app comm: " << ospray::mpi::app.comm
 			  << ", worker comm: " << ospray::mpi::worker.comm << "\n";
 	  }
 	  for (int r = 0; r < size; ++r) {
