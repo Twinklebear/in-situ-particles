@@ -98,6 +98,7 @@ namespace ospray {
       for (int iy=0;iy<dims.y;iy++)
         for (int ix=0;ix<dims.x;ix++, bID++) {
           Block &b = block[bID];
+		  vec3f block_id = vec3f(ix, iy, iz);
           vec3f f_lo = vec3f(ix,iy,iz) / vec3f(dims);
           vec3f f_up = vec3f(ix+1,iy+1,iz+1) / vec3f(dims);
           b.actualDomain.lower
@@ -108,6 +109,28 @@ namespace ospray {
             = b.actualDomain.lower - vec3f(ghosting);
           b.ghostDomain.upper
             = b.actualDomain.upper + vec3f(ghosting);
+
+		  // Find out which faces of this block are not shared by
+		  // any other block, and extend the region out so particles
+		  // aren't clipped when rendering
+		  if (ix == 0){
+			  b.actualDomain.lower.x = b.ghostDomain.lower.x;
+		  }
+		  if (ix == dims.x - 1){
+			  b.actualDomain.upper.x = b.ghostDomain.upper.x;
+		  }
+		  if (iy == 0){
+			  b.actualDomain.lower.y = b.ghostDomain.lower.y;
+		  }
+		  if (iy == dims.y - 1){
+			  b.actualDomain.upper.y = b.ghostDomain.upper.y;
+		  }
+		  if (iz == 0){
+			  b.actualDomain.lower.z = b.ghostDomain.lower.z;
+		  }
+		  if (iz == dims.z - 1){
+			  b.actualDomain.upper.z = b.ghostDomain.upper.z;
+		  }
 
           if (numBlocks >= size) {
             b.firstOwner = bID % size;

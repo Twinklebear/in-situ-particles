@@ -30,7 +30,7 @@
 #include "InSituSpheres_ispc.h"
 #include "PKDGeometry_ispc.h"
 
-#define USE_RENDER_RANK_ATTRIB 0
+#define USE_RENDER_RANK_ATTRIB 1
 
 namespace ospray {
   const std::string attribute_name = "attrib";
