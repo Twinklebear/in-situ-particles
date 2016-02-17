@@ -26,7 +26,7 @@ namespace ospray {
       particle model 'in place', so the order of the particles (and
       their attribute values etc) in the modle will change when this
       tree does its thing! */
-  struct PartiKD : public ManagedObject {
+  struct PartiKD {
     ParticleModel *model;
     size_t numParticles;
     size_t numInnerNodes;

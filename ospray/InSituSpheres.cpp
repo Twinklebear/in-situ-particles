@@ -34,8 +34,10 @@
 
 namespace ospray {
   const std::string attribute_name = "attrib";
+	PartiKD *InSituSpheres::next_pkd = nullptr;
+	box3f InSituSpheres::next_actual_bounds;
 
-  InSituSpheres::InSituSpheres()
+  InSituSpheres::InSituSpheres() : pkd(nullptr)
   {
     ispcEquivalent = ispc::PartiKDGeometry_create(this);
   }
@@ -72,11 +74,6 @@ namespace ospray {
 	  poll_delay = getParam1f("poll_rate", 10.0);
 	  transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
 	  port = getParam1i("port", -1);
-	  pkd = (PartiKD*)getParamObject("pkd", NULL);
-	  ParticleModel *old_particles = (ParticleModel*)getVoidPtr("old_particles", NULL);
-	  if (old_particles){
-		  delete old_particles;
-	  }
 	  if (server.empty() || port == -1){
 		  throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
 	  }
@@ -88,19 +85,27 @@ namespace ospray {
 		  throw std::runtime_error("#ospray:geometry/InSituSpheres: Must set OSPRAY_DATA_PARALLEL=XxYxZ"
 				  " for data parallel rendering!");
 	  }
+
+	  if (pkd){
+		  std::cout << "cleaning up existing pkd\n";
+		  delete pkd->model;
+		  delete pkd;
+	  }
+
 	  // Do a single blocking poll to get an initial timestep to render if the thread
 	  // hasn't been started
-	  if (!pkd){
+	  if (!next_pkd){
 		  std::cout << "ospray::InSituSpheres: Making blocking initial query\n";
 		  getTimeStep();
+		  // We're going to be re-committed immediately so just bail out for now
+		  return;
 	  }
+	  pkd = next_pkd;
 
 	  ParticleModel *particle_model = pkd->model;
 	  const box3f centerBounds = getBounds();
 	  const box3f sphereBounds(centerBounds.lower - vec3f(radius), centerBounds.upper + vec3f(radius));
-	  box3f actualBounds = embree::empty;
-	  actualBounds.lower = getParam3f("actual_bounds.low", sphereBounds.lower);
-	  actualBounds.upper = getParam3f("actual_bounds.up", sphereBounds.upper);
+	  box3f actualBounds = next_actual_bounds;
 
 	  // compute attribute mask and attrib lo/hi values
 	  float attr_lo = 0.f, attr_hi = 0.f;
@@ -192,7 +197,7 @@ namespace ospray {
 	  std::cout << "ospray::InSituSpheres: Building new timestep\n";
 	  ParticleModel *model = new ParticleModel;
 	  // Clear the old build data
-	  PartiKD *pkd_build = new PartiKD;
+	  next_pkd = new PartiKD;
 	  model->radius = radius;
 
 	  int rank = ospray::mpi::worker.rank;
@@ -256,18 +261,10 @@ namespace ospray {
 	  }
 	  // Build the pkd tree on the particles
 	  std::cout << "InSituSpheres: building pkd\n";
-	  pkd_build->build(model);
+	  next_pkd->build(model);
 
 	  // Set the new pkd as the one to be displayed
-	  setParam("pkd", pkd_build);
-	  findParam("actual_bounds.low", 1)->set(actual_bounds.lower);
-	  findParam("actual_bounds.up", 1)->set(actual_bounds.upper);
-	  // If we don't have a pkd to show, show this one (aka this is the first blocking call)
-	  if (!pkd){
-		  pkd = pkd_build;
-	  } else {
-		  findParam("old_particles", 1)->set(pkd->model);
-	  }
+	  next_actual_bounds = actual_bounds;
 	  // Wait for all workers to finish building the pkd
 	  MPI_CALL(Barrier(ospray::mpi::worker.comm));
 

@@ -74,7 +74,7 @@ namespace ospray {
     Ref<TransferFunction> transferFunction;
 	vec3i grid;
 
-	Ref<PartiKD> pkd;
+	PartiKD *pkd;
 	std::vector<uint32> binBitsArray;
 	std::string server;
 	int port;
@@ -84,6 +84,9 @@ namespace ospray {
 	virtual void dependencyGotChanged(ManagedObject *object);
 
   private:
+	static PartiKD *next_pkd;
+	static box3f next_actual_bounds;
+
 	// Repeatedly poll from the simulation until poller_exit 
 	// is set true
 	// Worker nodes should run this on a separate thread and call it repeatedly
