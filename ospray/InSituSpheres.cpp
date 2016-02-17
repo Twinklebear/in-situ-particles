@@ -30,7 +30,7 @@
 #include "InSituSpheres_ispc.h"
 #include "PKDGeometry_ispc.h"
 
-#define USE_RENDER_RANK_ATTRIB 1
+#define USE_RENDER_RANK_ATTRIB 0
 
 namespace ospray {
   const std::string attribute_name = "attrib";
@@ -208,9 +208,12 @@ namespace ospray {
 	  box3f actual_bounds = embree::empty;
 	  if (rank == 0){
 		  PRINT(dd->worldBounds);
+		  /*
 		  std::cout << "World comm: " << std::hex << ospray::mpi::world.comm
 			  << ", app comm: " << ospray::mpi::app.comm
-			  << ", worker comm: " << ospray::mpi::worker.comm << "\n";
+			  << ", worker comm: " << ospray::mpi::worker.comm
+			  << std::dec << "\n";
+			  */
 	  }
 	  for (int r = 0; r < size; ++r) {
 		  MPI_CALL(Barrier(ospray::mpi::worker.comm));
