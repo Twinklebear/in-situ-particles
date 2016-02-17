@@ -165,6 +165,9 @@ namespace ospray {
 			  (ispc::box3f&)actualBounds,
 			  attr_lo,attr_hi);
 
+	  // Wait for all workers to finish building the pkd
+	  MPI_CALL(Barrier(ospray::mpi::worker.comm));
+
 	  // Launch the thread to poll the sim if we haven't already
 	  std::cout << "ospray::InSituSpheres: launching background polling thread\n";
 	  auto sim_poller = std::thread([&]{ pollSimulation(); });
@@ -195,8 +198,11 @@ namespace ospray {
 	  int rank = ospray::mpi::worker.rank;
 	  int size = ospray::mpi::worker.size;
 	  box3f actual_bounds = embree::empty;
-	  if (rank == 0)
+	  if (rank == 0){
 		  PRINT(dd->worldBounds);
+		  std::cout << "World comm: " << std::hex << ospray::mpi::world.comm
+			  << ", worker comm: " << ospray::mpi::worker.comm << "\n";
+	  }
 	  for (int r = 0; r < size; ++r) {
 		  MPI_CALL(Barrier(ospray::mpi::worker.comm));
 		  if (r == rank) {
