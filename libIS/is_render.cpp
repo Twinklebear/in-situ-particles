@@ -13,6 +13,7 @@
 
 // std
 #include <iostream>
+#include <iomanip>
 #include <thread>
 #include <mutex>
 #include <vector>
@@ -158,8 +159,11 @@ namespace ospray {
     simComm = establishConnection(servName,servPort);
 
     MPI_CALL(Comm_remote_size(simComm,&numSimRanks));
-    if (rank == 0)
-      cout << "num sim ranks " << numSimRanks << endl;
+    if (rank == 0){
+      cout << "num sim ranks " << numSimRanks
+		  << ", using comm: " << std::hex << ownComm << std::dec
+		  << endl;
+	}
     MPI_CALL(Barrier(ownComm));
     
     box3f worldBounds;

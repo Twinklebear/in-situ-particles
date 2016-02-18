@@ -207,12 +207,10 @@ namespace ospray {
 	  box3f actual_bounds = embree::empty;
 	  if (rank == 0){
 		  PRINT(dd->worldBounds);
-		  /*
 		  std::cout << "World comm: " << std::hex << ospray::mpi::world.comm
 			  << ", app comm: " << ospray::mpi::app.comm
 			  << ", worker comm: " << ospray::mpi::worker.comm
 			  << std::dec << "\n";
-			  */
 	  }
 	  for (int r = 0; r < size; ++r) {
 		  MPI_CALL(Barrier(ospray::mpi::worker.comm));
