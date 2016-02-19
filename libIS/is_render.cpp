@@ -175,7 +175,8 @@ namespace ospray {
     box3f worldBounds;
 	// Receive the world bounds from the simulation
     MPI_CALL(Bcast(&worldBounds,6,MPI_FLOAT,0,simComm));
-	// TODO WILL: We can send the stride after the world bounds
+	// TODO WILL: We can send the stride after the world bounds if we want
+	// to have dynamically sized stride based on what the simulation has
 	if (rank == 0){
 		std::cout << "worldBounds = " << worldBounds.lower << " to " << worldBounds.upper << "\n";
 	}

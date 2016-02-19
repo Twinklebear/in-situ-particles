@@ -36,6 +36,7 @@ namespace ospray {
   const std::string attribute_name = "attrib";
 	PartiKD *InSituSpheres::next_pkd = nullptr;
 	box3f InSituSpheres::next_actual_bounds;
+	box3f world_bounds = embree::empty;
 
   InSituSpheres::InSituSpheres() : pkd(nullptr)
   {
@@ -177,9 +178,30 @@ namespace ospray {
 
 	  // Launch the thread to poll the sim if we haven't already
 #if OSP_IS_PULL_LOOP
-	  std::cout << "ospray::InSituSpheres: launching background polling thread\n";
-	  auto sim_poller = std::thread([&]{ pollSimulation(); });
-	  sim_poller.detach();
+	  static bool poll_once = true;
+	  if (poll_once){
+		  std::cout << "ospray::InSituSpheres: launching background polling thread\n";
+		  auto sim_poller = std::thread([&]{ pollSimulation(); });
+		  sim_poller.detach();
+		  poll_once = false;
+	  } else {
+		  auto sim_poller = std::thread([&]{
+			  // Just lie that we've been updated on occasion
+			  while (true){
+				  std::cout << "ospray::InSituSpheres: Polling for new timestep after "
+					  << poll_delay << "s\n";
+				  const auto millis =
+					  std::chrono::milliseconds(static_cast<std::chrono::milliseconds::rep>(
+							  poll_delay * 1000.0));
+				  std::this_thread::sleep_for(millis);
+				  // Tell the render process the bounds of the geometry in the world
+				  // and that we're dirty and should be updated
+				  if (ospray::mpi::world.rank == 1){
+					  MPI_CALL(Send(&world_bounds, 6, MPI_FLOAT, 0, 1, ospray::mpi::world.comm));
+				  }
+			  }
+		  });
+	  }
 #endif
   }
   void InSituSpheres::pollSimulation(){
@@ -272,6 +294,7 @@ namespace ospray {
 	  next_actual_bounds = actual_bounds;
 	  // Wait for all workers to finish building the pkd
 	  MPI_CALL(Barrier(ospray::mpi::worker.comm));
+	  world_bounds = dd->worldBounds;
 
 	  // Tell the render process the bounds of the geometry in the world
 	  // and that we're dirty and should be updated
