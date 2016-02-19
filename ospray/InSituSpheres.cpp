@@ -176,9 +176,11 @@ namespace ospray {
 	  MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
 	  // Launch the thread to poll the sim if we haven't already
+#if 0
 	  std::cout << "ospray::InSituSpheres: launching background polling thread\n";
 	  auto sim_poller = std::thread([&]{ pollSimulation(); });
 	  sim_poller.detach();
+#endif
   }
   void InSituSpheres::pollSimulation(){
 	  std::cout << "ospray::InSituSpheres: Polling for new timestep after " << poll_delay << "s\n";
