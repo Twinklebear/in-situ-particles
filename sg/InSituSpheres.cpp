@@ -77,9 +77,6 @@ namespace ospray {
 										ospray::mpi::world.comm, MPI_STATUS_IGNORE));
 							std::cout << "sg::InSituSpheres: MASTER recieved world bounds: " << bounds << "\n";
 							lastModified = TimeStamp::now();
-#if !OSP_IS_PULL_LOOP
-							break;
-#endif
 						}
 					});
 				}
