@@ -10,6 +10,8 @@
 #include "ospray/common/OSPCommon.h"
 #include "ospray/mpi/MPICommon.h"
 
+#define OSP_IS_PULL_LOOP 1
+
 namespace ospray {
 
   struct DomainGrid {

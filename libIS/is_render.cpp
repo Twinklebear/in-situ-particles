@@ -83,6 +83,8 @@ namespace ospray {
 
     if (rank == 0) 
       cout << "is_render: mpi comm established" << endl;
+
+	MPI_CALL(Close_port(mpiPortName));
     return simComm;
   }
 
