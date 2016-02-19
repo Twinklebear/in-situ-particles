@@ -152,9 +152,13 @@ namespace ospray {
   DomainGrid *ospIsPullRequest(MPI_Comm comm, const char *servName, int servPort,
                                const vec3i &dims, const float ghostRegionWidth)
   {
-    MPI_CALL(Comm_dup(comm,&ownComm));
-    MPI_CALL(Comm_rank(comm,&rank));
-    MPI_CALL(Comm_size(comm,&size));
+	static bool got_comm = false;
+	if (!got_comm){
+		MPI_CALL(Comm_dup(comm,&ownComm));
+		MPI_CALL(Comm_rank(comm,&rank));
+		MPI_CALL(Comm_size(comm,&size));
+		got_comm = true;
+	}
     
     simComm = establishConnection(servName,servPort);
 
