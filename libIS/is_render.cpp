@@ -152,12 +152,11 @@ namespace ospray {
   DomainGrid *ospIsPullRequest(MPI_Comm comm, const char *servName, int servPort,
                                const vec3i &dims, const float ghostRegionWidth)
   {
-	static bool got_comm = false;
-	if (!got_comm){
+	if (ownComm == MPI_COMM_NULL){
+		std::cout << "libis: dup'ing communicator" << std::endl;
 		MPI_CALL(Comm_dup(comm,&ownComm));
 		MPI_CALL(Comm_rank(comm,&rank));
 		MPI_CALL(Comm_size(comm,&size));
-		got_comm = true;
 	}
     
     simComm = establishConnection(servName,servPort);
@@ -165,7 +164,8 @@ namespace ospray {
     MPI_CALL(Comm_remote_size(simComm,&numSimRanks));
     if (rank == 0){
       cout << "num sim ranks " << numSimRanks
-		  << ", using comm: " << std::hex << ownComm << std::dec
+		  << ", using comm: " << std::hex << ownComm
+		  << ", sim comm: " << simComm << std::dec
 		  << endl;
 	}
     MPI_CALL(Barrier(ownComm));
