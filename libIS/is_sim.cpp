@@ -182,7 +182,6 @@ namespace is_sim {
 		  }
 	  }
 	  MPI_CALL(Bcast(&client_id, 1, MPI_INT, 0, simComm));
-	  std::cout << "#is_sim: sim rank " << simRank << " client_id is " << client_id << std::endl;
 	  // Now we all know if it's a new client or existing one and can connect/reuse properly
 	  if (client_id == -1){
 		  MPI_Comm remComm;
@@ -196,8 +195,6 @@ namespace is_sim {
 		  return remComm;
 	  }
 	  else {
-		  std::cout << "#is_sim: rank " << simRank << " using comm for client ID " << client_id
-			  << std::endl;
 		  assert(client_id >= 0 && client_id < client_comms.size());
 		  return client_comms[client_id];
 	  }
@@ -269,7 +266,6 @@ namespace is_sim {
          MPI_CALL(Send(&queried[0], queried.size(), MPI_FLOAT, r, 0, remComm));
        }
      }
-	 std::cout << "Finished sending particles\n";
   }
 
   extern "C" void ospIsInit(MPI_Comm comm)
@@ -294,7 +290,6 @@ namespace is_sim {
 	// assumption violated
     assert(strideInFloats == OSP_IS_STRIDE_IN_FLOATS);
     assert(simComm != MPI_COMM_NULL);
-	std::cout << "ospIsTimeStep" << std::endl;
     
     std::lock_guard<std::mutex> lock(mutex);
 	auto start = std::chrono::high_resolution_clock::now();
@@ -302,9 +297,6 @@ namespace is_sim {
     MPI_CALL(Bcast(&numPullRequests,1,MPI_INT,0,simComm));
 
     for (int i=0;i<numPullRequests;i++){
-	  std::cout << "Responding to pull request " << i << std::endl;
-	  // TODO: The workers don't know the port name so they need some way to identify
-	  // different clients
       pullRequest(simRank == 0 ? newPullRequest[i] : "", numParticles, particle);
 	}
     newPullRequest.clear();
