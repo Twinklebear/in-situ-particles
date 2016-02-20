@@ -28,11 +28,14 @@ namespace ospray {
   
   MPI_Comm simComm = MPI_COMM_NULL;
   MPI_Comm ownComm = MPI_COMM_NULL;
+  // Our name that identifies us to the simulation
+  std::string my_port_name;
 
   int numSimRanks=-1;
 
   MPI_Comm establishConnection(const char *servName, int servPort)
   {
+	assert(simComm == MPI_COMM_NULL);
     if (rank == 0)
       cout << "is_render: connecting to is_sim on " << servName << endl;
     MPI_CALL(Barrier(ownComm));
@@ -64,6 +67,7 @@ namespace ospray {
 	// TODO: Will this work? will we send back the same MPI port name each time or
 	// should that be cached as well?
     MPI_CALL(Open_port(MPI_INFO_NULL,mpiPortName));
+	my_port_name = mpiPortName;
     
     if (rank == 0) {
       cout << "is_render: mpi port opened at " << mpiPortName << endl;
@@ -78,19 +82,66 @@ namespace ospray {
       }
     }
 
-	// If we haven't connected to this client yet do so now
-	// otherwise since this function sets the global simComm we'll just return
-	// the already connected one
-	if (simComm == MPI_COMM_NULL){
-		cout << "is_render: mpi_accept on port " << mpiPortName << endl;
-		MPI_CALL(Comm_accept(mpiPortName,MPI_INFO_NULL,0,ownComm,&simComm));
+	cout << "is_render: mpi_accept on port " << mpiPortName << endl;
+	MPI_CALL(Comm_accept(mpiPortName,MPI_INFO_NULL,0,ownComm,&simComm));
 
-		if (rank == 0) 
-			cout << "is_render: mpi comm established" << endl;
+	if (rank == 0) 
+		cout << "is_render: mpi comm established" << endl;
 
-		MPI_CALL(Close_port(mpiPortName));
-	}
+	MPI_CALL(Close_port(mpiPortName));
     return simComm;
+  }
+  // The simulation knows us by the port name we opened initially, so send that back
+  // to indicate we want a new timestep
+  MPI_Comm reuseConnection(const char *servName, int servPort){
+	  assert(simComm != MPI_COMM_NULL && !my_port_name.empty());
+	  if (rank == 0)
+		  cout << "is_render: re-connecting to is_sim on " << servName << endl;
+
+	  int sockfd = -1;
+	  if (rank == 0) {
+		  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+		  if (sockfd == INVALID_SOCKET) 
+			  throw std::runtime_error("cannot create socket");
+
+		  /*! perform DNS lookup */
+		  struct hostent* server = ::gethostbyname(servName);
+		  if (server == nullptr) THROW_RUNTIME_ERROR("server "+std::string(servName)+" not found");
+
+		  /*! perform connection */
+		  struct sockaddr_in serv_addr;
+		  memset((char*)&serv_addr, 0, sizeof(serv_addr));
+		  serv_addr.sin_family = AF_INET;
+		  serv_addr.sin_port = (unsigned short) htons(servPort);
+		  memcpy((char*)&serv_addr.sin_addr.s_addr, (char*)server->h_addr, server->h_length);
+
+		  if (::connect(sockfd,(struct sockaddr*) &serv_addr,sizeof(serv_addr)) < 0)
+			  THROW_RUNTIME_ERROR("connection to is_sim socket failed");
+
+		  cout << "is_render: connection to is_sim socket established, now creating MPI intercomm" << endl;
+	  }      
+
+	  if (rank == 0) {
+		  cout << "is_render: sending back our old port name " << my_port_name << std::endl;
+		  int portLen = my_port_name.size();
+		  {
+			  ssize_t n = ::send(sockfd, &portLen, sizeof(portLen), 0);
+			  assert(n == sizeof(portLen));
+		  }
+		  {
+			  ssize_t n = ::send(sockfd, my_port_name.c_str(), portLen, 0);
+			  assert(n == portLen);
+		  }
+	  }
+	  MPI_CALL(Barrier(ownComm));
+	  return simComm;
+  }
+  MPI_Comm connectSim(const char *servName, int servPort){
+	  if (simComm == MPI_COMM_NULL){
+		  return establishConnection(servName, servPort);
+	  } else {
+		  return reuseConnection(servName, servPort);
+	  }
   }
 
 
@@ -166,7 +217,7 @@ namespace ospray {
 		MPI_CALL(Comm_size(comm,&size));
 	}
     
-    simComm = establishConnection(servName,servPort);
+    simComm = connectSim(servName, servPort);
 
     MPI_CALL(Comm_remote_size(simComm,&numSimRanks));
     if (rank == 0){

@@ -42,12 +42,14 @@ namespace is_sim {
   
   /*! vector of external mpi ports that requested data */
   std::vector<std::string> newPullRequest;
-  // TODO: Some way of tracking multiple clients! currently only
-  // one is supported. We should just have a map of <size_t, MPI_Comm>
-  // and then we can just broadcast the client ID to the workers on the
-  // sim side.
-  //std::unordered_map<std::string, MPI_Comm> client_comms;
-  MPI_Comm remComm = MPI_COMM_NULL;
+  /*! Only the first rank knows the client's port name so it
+   * keeps a mapping of names to IDs which the other ranks do know
+   * TODO WILL: How to handle disconnecting clients? What happens
+   * if we close the viewer & relaunch and it opens with the same
+   * MPI port name that the previous process had?
+   */
+  std::unordered_map<std::string, size_t> client_ids;
+  std::vector<MPI_Comm> client_comms;
   
   /*! opens a thread on sim rank 0, and waits for incoming 'pull
     requests'.  once a external pull request comes in this function
@@ -163,6 +165,43 @@ namespace is_sim {
 
     return true;
   }
+  /*! Connect to a new or existing client.
+   * If we haven't connected to this client before we open a new connection
+   * and store their id.
+   * If we have connected to this client we tell the workers its id and reuse the comm
+   */
+  MPI_Comm connectClient(const std::string &portName){
+	  int client_id = -1;
+	  if (simRank == 0){
+		  auto fnd = client_ids.find(portName);
+		  if (fnd == client_ids.end()){
+			  std::cout << "#is_sim: Connecting to NEW client " << portName << std::endl;
+		  } else {
+			  std::cout << "#is_sim: Reusing EXISTING client comm for " << portName << std::endl;
+			  client_id = fnd->second;
+		  }
+	  }
+	  MPI_CALL(Bcast(&client_id, 1, MPI_INT, 0, simComm));
+	  std::cout << "#is_sim: sim rank " << simRank << " client_id is " << client_id << std::endl;
+	  // Now we all know if it's a new client or existing one and can connect/reuse properly
+	  if (client_id == -1){
+		  MPI_Comm remComm;
+		  MPI_CALL(Comm_connect(const_cast<char*>(portName.c_str()),MPI_INFO_NULL,0,simComm,&remComm));
+		  std::cout << "#is_sim: comm connected to new client" << std::endl;
+		  MPI_CALL(Comm_set_errhandler(remComm,MPI_ERRORS_RETURN));
+		  client_comms.push_back(remComm);
+		  if (simRank == 0){
+			  client_ids[portName] = client_comms.size() - 1;
+		  }
+		  return remComm;
+	  }
+	  else {
+		  std::cout << "#is_sim: rank " << simRank << " using comm for client ID " << client_id
+			  << std::endl;
+		  assert(client_id >= 0 && client_id < client_comms.size());
+		  return client_comms[client_id];
+	  }
+  }
   void pullRequest(const std::string &portName,
                    size_t numParticles,
                    float *particle)
@@ -170,19 +209,7 @@ namespace is_sim {
 	if (simRank == 0){
 		std::cout << "Handling request from " << portName << std::endl;
 	}
-	// TODO WILL: Should we track clients who we no longer are sending
-	// timesteps too and disconnect from them?
-	// We haven't connected to this client before, so connect now
-	if (remComm == MPI_COMM_NULL){
-		if (simRank == 0)
-			cout << "#is_sim: comm_connect on " << portName << endl;
-
-		MPI_CALL(Comm_connect(const_cast<char*>(portName.c_str()),MPI_INFO_NULL,0,simComm,&remComm));
-		std::cout << "#is_sim: comm connected\n";
-		MPI_CALL(Comm_set_errhandler(remComm,MPI_ERRORS_RETURN));
-	} else {
-		std::cout << "re-using existing comm for client '" << portName << "'" << std::endl;
-	}
+	MPI_Comm remComm = connectClient(portName);
     int remSize;
     MPI_CALL(Comm_remote_size(remComm,&remSize));
     
