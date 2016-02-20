@@ -75,7 +75,8 @@ namespace ospray {
 							std::cout << "sg::InSituSpheres: MASTER Waiting to recieve world bounds\n";
 							MPI_CALL(Recv(&bounds, 6, MPI_FLOAT, 1, 1,
 										ospray::mpi::world.comm, MPI_STATUS_IGNORE));
-							std::cout << "sg::InSituSpheres: MASTER recieved world bounds: " << bounds << "\n";
+							std::cout << "sg::InSituSpheres: MASTER recieved world bounds: "
+								<< bounds << "\n";
 							lastModified = TimeStamp::now();
 						}
 					});
