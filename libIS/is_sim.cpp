@@ -43,7 +43,9 @@ namespace is_sim {
   /*! vector of external mpi ports that requested data */
   std::vector<std::string> newPullRequest;
   // TODO: Some way of tracking multiple clients! currently only
-  // one is supported
+  // one is supported. We should just have a map of <size_t, MPI_Comm>
+  // and then we can just broadcast the client ID to the workers on the
+  // sim side.
   //std::unordered_map<std::string, MPI_Comm> client_comms;
   MPI_Comm remComm = MPI_COMM_NULL;
   
@@ -215,6 +217,8 @@ namespace is_sim {
        MPI_CALL(Bcast(&allBounds,6,MPI_FLOAT,MPI_ROOT,remComm));
      }
 
+	 PRINT(allBounds);
+
 	 std::vector<float> queried;
      for (int r=0;r<remSize;r++) {
 	   queried.clear();
@@ -238,6 +242,7 @@ namespace is_sim {
          MPI_CALL(Send(&queried[0], queried.size(), MPI_FLOAT, r, 0, remComm));
        }
      }
+	 std::cout << "Finished sending particles\n";
   }
 
   extern "C" void ospIsInit(MPI_Comm comm)

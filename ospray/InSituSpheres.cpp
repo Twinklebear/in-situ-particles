@@ -206,11 +206,9 @@ namespace ospray {
 	  std::cout << "ospray::InSituSpheres: Polling for new timestep after " << poll_delay << "s\n";
 	  const auto millis = std::chrono::milliseconds(
 			  static_cast<std::chrono::milliseconds::rep>(poll_delay * 1000.0));
-	  while (true){
-		  std::this_thread::sleep_for(millis);
-		  std::cout << "ospray::InSituSpheres: THREAD polling for new timestep\n";
-		  getTimeStep();
-	  }
+	  std::this_thread::sleep_for(millis);
+	  std::cout << "ospray::InSituSpheres: THREAD polling for new timestep\n";
+	  getTimeStep();
   }
   void InSituSpheres::getTimeStep(){
 	  const float ghostRegionWidth = radius * 1.5f;
