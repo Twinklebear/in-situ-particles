@@ -17,6 +17,7 @@
 #include <mutex>
 #include <vector>
 #include <chrono>
+#include <unordered_map>
 
 #include "is_common.h"
 #include "ospray/common/OSPCommon.h"
@@ -41,6 +42,10 @@ namespace is_sim {
   
   /*! vector of external mpi ports that requested data */
   std::vector<std::string> newPullRequest;
+  // TODO: Some way of tracking multiple clients! currently only
+  // one is supported
+  //std::unordered_map<std::string, MPI_Comm> client_comms;
+  MPI_Comm remComm = MPI_COMM_NULL;
   
   /*! opens a thread on sim rank 0, and waits for incoming 'pull
     requests'.  once a external pull request comes in this function
@@ -160,13 +165,22 @@ namespace is_sim {
                    size_t numParticles,
                    float *particle)
   {
-    MPI_Comm remComm;
-    if (simRank == 0)
-      cout << "#is_sim: comm_connect on " << portName << endl;
-    
-    MPI_CALL(Comm_connect(const_cast<char*>(portName.c_str()),MPI_INFO_NULL,0,simComm,&remComm));
-	std::cout << "#is_sim: comm connected\n";
-    MPI_CALL(Comm_set_errhandler(remComm,MPI_ERRORS_RETURN));
+	if (simRank == 0){
+		std::cout << "Handling request from " << portName << std::endl;
+	}
+	// TODO WILL: Should we track clients who we no longer are sending
+	// timesteps too and disconnect from them?
+	// We haven't connected to this client before, so connect now
+	if (remComm == MPI_COMM_NULL){
+		if (simRank == 0)
+			cout << "#is_sim: comm_connect on " << portName << endl;
+
+		MPI_CALL(Comm_connect(const_cast<char*>(portName.c_str()),MPI_INFO_NULL,0,simComm,&remComm));
+		std::cout << "#is_sim: comm connected\n";
+		MPI_CALL(Comm_set_errhandler(remComm,MPI_ERRORS_RETURN));
+	} else {
+		std::cout << "re-using existing comm for client '" << portName << "'" << std::endl;
+	}
     int remSize;
     MPI_CALL(Comm_remote_size(remComm,&remSize));
     
@@ -224,7 +238,6 @@ namespace is_sim {
          MPI_CALL(Send(&queried[0], queried.size(), MPI_FLOAT, r, 0, remComm));
        }
      }
-    MPI_CALL(Comm_disconnect(&remComm));
   }
 
   extern "C" void ospIsInit(MPI_Comm comm)
@@ -249,15 +262,19 @@ namespace is_sim {
 	// assumption violated
     assert(strideInFloats == OSP_IS_STRIDE_IN_FLOATS);
     assert(simComm != MPI_COMM_NULL);
+	std::cout << "ospIsTimeStep" << std::endl;
     
     std::lock_guard<std::mutex> lock(mutex);
 	auto start = std::chrono::high_resolution_clock::now();
     int numPullRequests = newPullRequest.size();
     MPI_CALL(Bcast(&numPullRequests,1,MPI_INT,0,simComm));
 
-    for (int i=0;i<numPullRequests;i++)
-      pullRequest(simRank == 0 ? newPullRequest[i] : "",
-                  numParticles, particle);
+    for (int i=0;i<numPullRequests;i++){
+	  std::cout << "Responding to pull request " << i << std::endl;
+	  // TODO: The workers don't know the port name so they need some way to identify
+	  // different clients
+      pullRequest(simRank == 0 ? newPullRequest[i] : "", numParticles, particle);
+	}
     newPullRequest.clear();
 	auto end = std::chrono::high_resolution_clock::now();
 	uint64_t dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();

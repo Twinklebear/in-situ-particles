@@ -33,7 +33,6 @@ namespace ospray {
 
   MPI_Comm establishConnection(const char *servName, int servPort)
   {
-    MPI_Comm simComm = MPI_COMM_NULL;
     if (rank == 0)
       cout << "is_render: connecting to is_sim on " << servName << endl;
     MPI_CALL(Barrier(ownComm));
@@ -62,6 +61,8 @@ namespace ospray {
     }      
     
     char mpiPortName[MPI_MAX_PORT_NAME];
+	// TODO: Will this work? will we send back the same MPI port name each time or
+	// should that be cached as well?
     MPI_CALL(Open_port(MPI_INFO_NULL,mpiPortName));
     
     if (rank == 0) {
@@ -77,14 +78,18 @@ namespace ospray {
       }
     }
 
-    // if (rank == 0)
-    cout << "is_render: mpi_accept on port " << mpiPortName << endl;
-    MPI_CALL(Comm_accept(mpiPortName,MPI_INFO_NULL,0,ownComm,&simComm));
+	// If we haven't connected to this client yet do so now
+	// otherwise since this function sets the global simComm we'll just return
+	// the already connected one
+	if (simComm == MPI_COMM_NULL){
+		cout << "is_render: mpi_accept on port " << mpiPortName << endl;
+		MPI_CALL(Comm_accept(mpiPortName,MPI_INFO_NULL,0,ownComm,&simComm));
 
-    if (rank == 0) 
-      cout << "is_render: mpi comm established" << endl;
+		if (rank == 0) 
+			cout << "is_render: mpi comm established" << endl;
 
-	MPI_CALL(Close_port(mpiPortName));
+		MPI_CALL(Close_port(mpiPortName));
+	}
     return simComm;
   }
 
@@ -173,7 +178,8 @@ namespace ospray {
     MPI_CALL(Barrier(ownComm));
     
     box3f worldBounds;
-	// Receive the world bounds from the simulation
+	// Receive the world bounds from the simulation, this is also our indicator
+	// that it is ready to send us a timestep
     MPI_CALL(Bcast(&worldBounds,6,MPI_FLOAT,0,simComm));
 	// TODO WILL: We can send the stride after the world bounds if we want
 	// to have dynamically sized stride based on what the simulation has
@@ -209,7 +215,6 @@ namespace ospray {
     }
 
     MPI_CALL(Barrier(ownComm));
-	MPI_CALL(Comm_disconnect(&simComm));
     return grid;
   }
 

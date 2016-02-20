@@ -90,11 +90,13 @@ namespace ospray {
 				  " for data parallel rendering!");
 	  }
 
+#if OSP_IS_PULL_LOOP
 	  if (pkd){
 		  std::cout << "cleaning up existing pkd\n";
 		  delete pkd->model;
 		  delete pkd;
 	  }
+#endif
 
 	  // Do a single blocking poll to get an initial timestep to render if the thread
 	  // hasn't been started
@@ -202,10 +204,13 @@ namespace ospray {
   }
   void InSituSpheres::pollSimulation(){
 	  std::cout << "ospray::InSituSpheres: Polling for new timestep after " << poll_delay << "s\n";
-	  const auto millis = std::chrono::milliseconds(static_cast<std::chrono::milliseconds::rep>(poll_delay * 1000.0));
-	  std::this_thread::sleep_for(millis);
-	  std::cout << "ospray::InSituSpheres: THREAD polling for new timestep\n";
-	  getTimeStep();
+	  const auto millis = std::chrono::milliseconds(
+			  static_cast<std::chrono::milliseconds::rep>(poll_delay * 1000.0));
+	  while (true){
+		  std::this_thread::sleep_for(millis);
+		  std::cout << "ospray::InSituSpheres: THREAD polling for new timestep\n";
+		  getTimeStep();
+	  }
   }
   void InSituSpheres::getTimeStep(){
 	  const float ghostRegionWidth = radius * 1.5f;
