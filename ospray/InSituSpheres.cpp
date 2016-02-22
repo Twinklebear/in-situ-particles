@@ -190,8 +190,11 @@ namespace ospray {
 	  getTimeStep();
   }
   void InSituSpheres::getTimeStep(){
-	  //const float ghostRegionWidth = radius * 1.5f;
+#ifdef AO_OCCLUSION_DISTANCE
 	  const float ghostRegionWidth = std::max(radius, AO_OCCLUSION_DISTANCE);
+#else
+	  const float ghostRegionWidth = radius * 1.5f;
+#endif
 	  std::cout << "World rank is " << ospray::mpi::world.rank << "\n";
 	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, server.c_str(), port,
 			  grid, ghostRegionWidth);

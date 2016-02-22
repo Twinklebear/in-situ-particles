@@ -292,6 +292,11 @@ namespace is_sim {
     assert(simComm != MPI_COMM_NULL);
     
     std::lock_guard<std::mutex> lock(mutex);
+	if (simRank == 0){
+		// Marker to aid regex when searching for timestep time on timesteps that
+		// we sent particle data on
+		std::cout << "\%\%ospIsTimeStep\%\%" << std::endl;
+	}
 	auto start = std::chrono::high_resolution_clock::now();
     int numPullRequests = newPullRequest.size();
     MPI_CALL(Bcast(&numPullRequests,1,MPI_INT,0,simComm));
@@ -304,7 +309,7 @@ namespace is_sim {
 	uint64_t dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	uint64_t max_dur = 0;
 	MPI_CALL(Allreduce(&dur, &max_dur, 1, MPI_UINT64_T, MPI_MAX, simComm));
-	if (simRank == 0){
+	if (simRank == 0 && numPullRequests > 0){
 		std::cout << "Longest time responding to pull requests took " << max_dur << "ms\n";
 	}
   }  
