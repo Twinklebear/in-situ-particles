@@ -18,6 +18,8 @@
 #include <mutex>
 #include <vector>
 
+#include "../testing_defines.h"
+
 typedef int *socket_t;
 #define INVALID_SOCKET -1
 
@@ -172,7 +174,6 @@ namespace ospray {
 		  // Find out which faces of this block are not shared by
 		  // any other block, and extend the region out so particles
 		  // aren't clipped when rendering
-#define CORRECT_BOUND_EXTENSION 1
 #if CORRECT_BOUND_EXTENSION
 		  if (ix == 0){
 			  b.actualDomain.lower.x = b.ghostDomain.lower.x;

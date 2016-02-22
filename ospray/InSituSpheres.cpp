@@ -30,7 +30,7 @@
 #include "InSituSpheres_ispc.h"
 #include "PKDGeometry_ispc.h"
 
-#define USE_RENDER_RANK_ATTRIB 1
+#include "../testing_defines.h"
 
 namespace ospray {
   const std::string attribute_name = "attrib";
@@ -190,7 +190,8 @@ namespace ospray {
 	  getTimeStep();
   }
   void InSituSpheres::getTimeStep(){
-	  const float ghostRegionWidth = radius * 1.5f;
+	  //const float ghostRegionWidth = radius * 1.5f;
+	  const float ghostRegionWidth = std::max(radius, AO_OCCLUSION_DISTANCE);
 	  std::cout << "World rank is " << ospray::mpi::world.rank << "\n";
 	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, server.c_str(), port,
 			  grid, ghostRegionWidth);

@@ -28,6 +28,7 @@
 #include "embree2/rtcore_scene.isph"
 #include "embree2/rtcore_geometry_user.isph"
 
+#include "../testing_defines.h"
 
 // uniform int rayID = 0;
 
@@ -336,10 +337,14 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
                                 uniform bool isShadowRay)
 {
   float t_in = ray.t0, t_out = ray.t;
-#define CORRECT_RAY_CLIPPING 1
+
 #if CORRECT_RAY_CLIPPING
   if (isShadowRay){
+#if CORRECT_AO
 	  intersectBox(ray, self->sphereBounds, t_in, t_out);
+#else
+	  intersectBox(ray, self->actualBounds, t_in, t_out);
+#endif
   } else {
 	  intersectBox(ray, self->actualBounds, t_in, t_out);
   }
