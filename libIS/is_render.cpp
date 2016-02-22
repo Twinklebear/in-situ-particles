@@ -172,6 +172,8 @@ namespace ospray {
 		  // Find out which faces of this block are not shared by
 		  // any other block, and extend the region out so particles
 		  // aren't clipped when rendering
+#define CORRECT_BOUND_EXTENSION 1
+#if CORRECT_BOUND_EXTENSION
 		  if (ix == 0){
 			  b.actualDomain.lower.x = b.ghostDomain.lower.x;
 		  }
@@ -190,6 +192,7 @@ namespace ospray {
 		  if (iz == dims.z - 1){
 			  b.actualDomain.upper.z = b.ghostDomain.upper.z;
 		  }
+#endif
 
           if (numBlocks >= size) {
             b.firstOwner = bID % size;
