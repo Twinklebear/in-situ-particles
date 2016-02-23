@@ -176,10 +176,12 @@ namespace ospray {
 	  // Wait for all workers to finish building the pkd
 	  MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
+#if !POLL_ONCE
 	  // Launch the thread to poll the sim if we haven't already
 	  std::cout << "ospray::InSituSpheres: launching background polling thread\n";
 	  auto sim_poller = std::thread([&]{ pollSimulation(); });
 	  sim_poller.detach();
+#endif
   }
   void InSituSpheres::pollSimulation(){
 	  std::cout << "ospray::InSituSpheres: Polling for new timestep after " << poll_delay << "s\n";

@@ -6,6 +6,8 @@
 #include "sg/common/Integrator.h"
 #include "InSituSpheres.h"
 
+#include "../testing_defines.h"
+
 namespace ospray {
 	namespace sg {
 		InSituSpheres::InSituSpheres() : Geometry("InSituSpheres"), radius(0.01f), geometry(NULL),
@@ -78,6 +80,9 @@ namespace ospray {
 							std::cout << "sg::InSituSpheres: MASTER recieved world bounds: "
 								<< bounds << "\n";
 							lastModified = TimeStamp::now();
+						#if POLL_ONCE
+							break;
+						#endif
 						}
 					});
 				}
