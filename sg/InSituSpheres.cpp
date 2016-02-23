@@ -42,6 +42,8 @@ namespace ospray {
 				// want to do a 'real' material
 				OSPMaterial mat = ospNewMaterial(ctx.integrator ? ctx.integrator->getOSPHandle() : NULL, "default");
 				if (mat) {
+					// The Uintah stuff from Josh looks good with a slightly unrealistic
+					// brighter material than this one. Otherwise it gets a bit too dark
 					vec3f kd(.9f);
 					vec3f ks(.1f);
 					ospSet3fv(mat,"kd", &kd.x);

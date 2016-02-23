@@ -5,9 +5,10 @@
 // comparison images
 // Sets the ghost region and AO occlusion ray length in
 // ospray/InSituParticles.cpp and sg/common/Integrator.cpp
-//#define AO_OCCLUSION_DISTANCE 0.009f
+// AO of 0.0003 seems to work well for Josh's Uintah sim
+//#define AO_OCCLUSION_DISTANCE 0.0003f
 // Toggles if we use the renderer rank to color or not in ospray/InSituParticles.cpp
-#define USE_RENDER_RANK_ATTRIB 1
+#define USE_RENDER_RANK_ATTRIB 0
 // Effects clipping and ao bounds used in TraversePacket.ispc
 #define CORRECT_AO 1
 #define CORRECT_RAY_CLIPPING 1
@@ -25,5 +26,5 @@
 #define PKD_COLOR_BLUE_RED 4
 #define PKD_COLOR_GRAYSCALE 5
 
-#define DEFAULT_COLOR_MAP PKD_COLOR_COOL_WARM
+//#define DEFAULT_COLOR_MAP PKD_COLOR_COOL_WARM
 
