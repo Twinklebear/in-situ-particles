@@ -99,7 +99,7 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
   else /* miss : */ return false;
   // TODO: Why do we not get the same correct compositing when just setting ray.t0
   // ray.t to the region we want to limit? The expressions evaluate to the same operations!
-  if (hit_t <= t_in_0 || hit_t >= t_out_0){
+  if (hit_t < t_in_0 || hit_t > t_out_0){
 	  return false;
   }
 
