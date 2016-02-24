@@ -12,14 +12,14 @@
 // Toggles if we use the renderer rank to color or not in ospray/InSituParticles.cpp
 #define USE_RENDER_RANK_ATTRIB 1
 // Effects clipping and ao bounds used in TraversePacket.ispc
-#define CORRECT_AO 0
+#define CORRECT_AO 1
 #define CORRECT_RAY_CLIPPING 1
 // Toggles whether or not we do the border bound extension in is_render.cpp
 #define CORRECT_BOUND_EXTENSION 1
 // Whether we should poll just once or loop to get new timesteps
 #define POLL_ONCE 1
 // If we should reset the camera position upon getting the new world bounds
-#define REPOSITION_CAMERA 0
+#define REPOSITION_CAMERA 1
 // If we want to print the total number of particles (including duplicated ghost ones)
 #define PRINT_FULL_PARTICLE_COUNT 0
 
@@ -30,7 +30,7 @@
 #define PKD_COLOR_BLUE_RED 4
 #define PKD_COLOR_GRAYSCALE 5
 
-#define DEFAULT_COLOR_MAP PKD_COLOR_ICE_FIRE
+//#define DEFAULT_COLOR_MAP PKD_COLOR_COOL_WARM
 
 #define BATCH_RENDER_SAMPLES 64
 
