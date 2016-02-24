@@ -261,6 +261,17 @@ namespace ospray {
 	  std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = "
 		  << model->position.size() << std::endl;
 
+#if PRINT_FULL_PARTICLE_COUNT
+	  uint64_t num_particles = model->position.size();
+	  uint64_t total_particles = 0;
+	  MPI_CALL(Allreduce(&num_particles, &total_particles, 1, MPI_UINT64_T, MPI_SUM,
+				  ospray::mpi::worker.comm));
+	  if (rank == 0){
+		  std::cout << "#ospray:geometry/InSituSpheres: Total Particles = " << total_particles
+			  << std::endl;
+	  }
+#endif
+
 	  if (model->position.size() >= (1ULL << 30)) {
 		  throw std::runtime_error("#ospray::InSituSpheres: too many InSituSpheres in this "
 				  "sphere geometry. Consider splitting this "
