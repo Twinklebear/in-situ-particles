@@ -17,7 +17,7 @@
 // Toggles whether or not we do the border bound extension in is_render.cpp
 #define CORRECT_BOUND_EXTENSION 1
 // Whether we should poll just once or loop to get new timesteps
-#define POLL_ONCE 1
+#define POLL_ONCE 0
 // If we should reset the camera position upon getting the new world bounds
 #define REPOSITION_CAMERA 1
 // If we want to print the total number of particles (including duplicated ghost ones)
