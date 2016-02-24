@@ -295,7 +295,7 @@ namespace is_sim {
 	if (simRank == 0){
 		// Marker to aid regex when searching for timestep time on timesteps that
 		// we sent particle data on
-		std::cout << "\%\%ospIsTimeStep\%\%" << std::endl;
+		std::cout << "%%ospIsTimeStep%%" << std::endl;
 	}
 	auto start = std::chrono::high_resolution_clock::now();
     int numPullRequests = newPullRequest.size();
