@@ -195,6 +195,11 @@ namespace ospray {
 		  }
 #endif
 
+		  // TODO WILL: Choosing blocks with modulo results in non-disjoint
+		  // non-convex regions rendered by nodes! Try running single
+		  // nanosphere with a 4x4x4 render grid and 8 workers for an
+		  // example of this. The blocks given to workers are striped
+		  // across the region so we get tons of compositing issues!
           if (numBlocks >= size) {
             b.firstOwner = bID % size;
             b.numOwners = 1;

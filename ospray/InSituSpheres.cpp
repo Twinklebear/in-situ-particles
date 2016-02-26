@@ -228,7 +228,7 @@ namespace ospray {
 			  for (int mbID = 0; mbID < dd->numMine(); ++mbID) {
 				  std::cout << " rank: " << rank << " #" << mbID << std::endl;
 				  const DomainGrid::Block &b = dd->getMine(mbID);
-				  actual_bounds = b.actualDomain;
+				  actual_bounds = embree::merge(actual_bounds, b.actualDomain);
 				  std::cout << "  lo " << b.actualDomain.lower << std::endl;
 				  std::cout << "  hi " << b.actualDomain.upper << std::endl;
 				  std::cout << "  ghost lo " << b.ghostDomain.lower << std::endl;
