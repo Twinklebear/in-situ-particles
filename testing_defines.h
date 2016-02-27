@@ -9,7 +9,7 @@
 //#define AO_OCCLUSION_DISTANCE 0.00025f
 // Testing on the AO/ghost size for the single LAMMPS nanosphere with 0.003 radius
 //#define AO_OCCLUSION_DISTANCE 0.0085f 
-#define AO_OCCLUSION_DISTANCE 0.027f 
+#define AO_OCCLUSION_DISTANCE 0.028f 
 // Toggles if we use the renderer rank to color or not in ospray/InSituParticles.cpp
 #define USE_RENDER_RANK_ATTRIB 0
 // Effects clipping and ao bounds used in TraversePacket.ispc
@@ -22,7 +22,7 @@
 // If we should reset the camera position upon getting the new world bounds
 #define REPOSITION_CAMERA 1
 // If we want to print the total number of particles (including duplicated ghost ones)
-#define PRINT_FULL_PARTICLE_COUNT 0
+#define PRINT_FULL_PARTICLE_COUNT 1
 
 // Various color map selections for picking color map for a batch render
 #define PKD_COLOR_JET 1
