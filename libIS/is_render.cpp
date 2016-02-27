@@ -200,6 +200,10 @@ namespace ospray {
 		  // nanosphere with a 4x4x4 render grid and 8 workers for an
 		  // example of this. The blocks given to workers are striped
 		  // across the region so we get tons of compositing issues!
+		  // Actually, what if we just had a different pkd for each box?
+		  // Then the regions themselves are disjoint & convex but the total
+		  // regions rendered by each node are not necessarily so. Would
+		  // compositing work here?
           if (numBlocks >= size) {
             b.firstOwner = bID % size;
             b.numOwners = 1;
