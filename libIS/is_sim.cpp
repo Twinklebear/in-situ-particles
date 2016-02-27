@@ -22,6 +22,8 @@
 #include "is_common.h"
 #include "ospray/common/OSPCommon.h"
 
+#include "../testing_defines.h"
+
 typedef int *socket_t;
 #define INVALID_SOCKET -1
 
