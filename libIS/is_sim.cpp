@@ -292,13 +292,14 @@ namespace is_sim {
     assert(simComm != MPI_COMM_NULL);
     
     std::lock_guard<std::mutex> lock(mutex);
-	if (simRank == 0){
+    int numPullRequests = newPullRequest.size();
+    MPI_CALL(Bcast(&numPullRequests,1,MPI_INT,0,simComm));
+
+	if (simRank == 0 && numPullRequests > 0){
 		// Marker to aid regex when searching for timestep time on timesteps that
 		// we sent particle data on
 		std::cout << "%%ospIsTimeStep%%" << std::endl;
 	}
-    int numPullRequests = newPullRequest.size();
-    MPI_CALL(Bcast(&numPullRequests,1,MPI_INT,0,simComm));
 
     for (int i=0;i<numPullRequests;i++){
       pullRequest(simRank == 0 ? newPullRequest[i] : "", numParticles, particle);
