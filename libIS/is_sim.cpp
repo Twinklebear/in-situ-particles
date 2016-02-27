@@ -186,7 +186,9 @@ namespace is_sim {
 	  if (client_id == -1){
 		  MPI_Comm remComm;
 		  MPI_CALL(Comm_connect(const_cast<char*>(portName.c_str()),MPI_INFO_NULL,0,simComm,&remComm));
-		  std::cout << "#is_sim: comm connected to new client" << std::endl;
+		  if (simRank == 0){
+			  std::cout << "#is_sim: comm connected to new client" << std::endl;
+		  }
 		  MPI_CALL(Comm_set_errhandler(remComm,MPI_ERRORS_RETURN));
 		  client_comms.push_back(remComm);
 		  if (simRank == 0){
@@ -224,7 +226,7 @@ namespace is_sim {
      MPI_CALL(Allreduce(&myBounds.lower,&allBounds.lower,3,MPI_FLOAT,MPI_MIN,simComm));
      MPI_CALL(Allreduce(&myBounds.upper,&allBounds.upper,3,MPI_FLOAT,MPI_MAX,simComm));
 
-#ifdef OSP_IS_PRINT_TOTAL_PARTICLES
+#if PRINT_FULL_PARTICLE_COUNT
 	 size_t totalParticles = 0;
 	 MPI_CALL(Allreduce(&numParticles, &totalParticles, 1, MPI_UINT64_T, MPI_SUM, simComm));
 	 if (simRank == 0){
@@ -232,16 +234,14 @@ namespace is_sim {
 	 }
 #endif
 
-     PRINT(myBounds);
-
      // now, send reduced bounds to remote group
      if (simRank == 0) {
 	   // TODO WILL: Also send the stride of the data we're sending
 	   // if we want more than 1 attrib
        MPI_CALL(Bcast(&allBounds,6,MPI_FLOAT,MPI_ROOT,remComm));
+	   PRINT(allBounds);
      }
 
-	 PRINT(allBounds);
 
 	 std::vector<float> queried;
      for (int r=0;r<remSize;r++) {
@@ -297,7 +297,6 @@ namespace is_sim {
 		// we sent particle data on
 		std::cout << "%%ospIsTimeStep%%" << std::endl;
 	}
-	auto start = std::chrono::high_resolution_clock::now();
     int numPullRequests = newPullRequest.size();
     MPI_CALL(Bcast(&numPullRequests,1,MPI_INT,0,simComm));
 
@@ -305,12 +304,5 @@ namespace is_sim {
       pullRequest(simRank == 0 ? newPullRequest[i] : "", numParticles, particle);
 	}
     newPullRequest.clear();
-	auto end = std::chrono::high_resolution_clock::now();
-	uint64_t dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	uint64_t max_dur = 0;
-	MPI_CALL(Allreduce(&dur, &max_dur, 1, MPI_UINT64_T, MPI_MAX, simComm));
-	if (simRank == 0 && numPullRequests > 0){
-		std::cout << "Longest time responding to pull requests took " << max_dur << "ms\n";
-	}
   }  
 }

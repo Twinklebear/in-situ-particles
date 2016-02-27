@@ -9,7 +9,7 @@
 //#define AO_OCCLUSION_DISTANCE 0.00025f
 // Testing on the AO/ghost size for the single LAMMPS nanosphere with 0.003 radius
 //#define AO_OCCLUSION_DISTANCE 0.0085f 
-#define AO_OCCLUSION_DISTANCE 0.028f 
+#define AO_OCCLUSION_DISTANCE 0.03f 
 // Toggles if we use the renderer rank to color or not in ospray/InSituParticles.cpp
 #define USE_RENDER_RANK_ATTRIB 0
 // Effects clipping and ao bounds used in TraversePacket.ispc
@@ -34,4 +34,7 @@
 //#define DEFAULT_COLOR_MAP PKD_COLOR_COOL_WARM
 
 #define BATCH_RENDER_SAMPLES 32
+
+// Toggle to enable/disable the simulation using the insitu library
+#define OSP_IS_ENABLED 1
 

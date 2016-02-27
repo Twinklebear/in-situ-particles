@@ -91,7 +91,6 @@ namespace ospray {
 	  }
 
 	  if (pkd){
-		  std::cout << "cleaning up existing pkd\n";
 		  delete pkd->model;
 		  delete pkd;
 	  }
@@ -188,7 +187,6 @@ namespace ospray {
 	  const auto millis = std::chrono::milliseconds(
 			  static_cast<std::chrono::milliseconds::rep>(poll_delay * 1000.0));
 	  std::this_thread::sleep_for(millis);
-	  std::cout << "ospray::InSituSpheres: THREAD polling for new timestep\n";
 	  getTimeStep();
   }
   void InSituSpheres::getTimeStep(){
@@ -197,7 +195,6 @@ namespace ospray {
 #else
 	  const float ghostRegionWidth = radius * 1.5f;
 #endif
-	  std::cout << "World rank is " << ospray::mpi::world.rank << "\n";
 	  DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, server.c_str(), port,
 			  grid, ghostRegionWidth);
 
@@ -238,7 +235,8 @@ namespace ospray {
 				  std::cout << "  #p " << b.particle.size() / OSP_IS_STRIDE_IN_FLOATS << std::endl;
 				  for (size_t i = 0; i < b.particle.size() / OSP_IS_STRIDE_IN_FLOATS; ++i){
 					  size_t pid = i * OSP_IS_STRIDE_IN_FLOATS;
-					  model->position.push_back(vec3f(b.particle[pid], b.particle[pid + 1], b.particle[pid + 2]));
+					  model->position.push_back(vec3f(b.particle[pid], b.particle[pid + 1],
+								  b.particle[pid + 2]));
 					  // TODO WILL: If we want to color by render node rank we should push back 'rank' here
 					  if (OSP_IS_STRIDE_IN_FLOATS == 4){
 #if !USE_RENDER_RANK_ATTRIB
