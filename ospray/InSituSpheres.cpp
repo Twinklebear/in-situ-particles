@@ -201,7 +201,6 @@ namespace ospray {
 	  // Get the model from pkd and allocate it if it's missing
 	  // we also have the builder forget about the model since it asserts
 	  // that no model is set when calling build
-	  std::cout << "ospray::InSituSpheres: Building new timestep\n";
 	  ParticleModel *model = new ParticleModel;
 	  // Clear the old build data
 	  next_pkd = new PartiKD;
@@ -212,10 +211,6 @@ namespace ospray {
 	  box3f actual_bounds = embree::empty;
 	  if (rank == 0){
 		  PRINT(dd->worldBounds);
-		  std::cout << "World comm: " << std::hex << ospray::mpi::world.comm
-			  << ", app comm: " << ospray::mpi::app.comm
-			  << ", worker comm: " << ospray::mpi::worker.comm
-			  << std::dec << "\n";
 	  }
 	  for (int r = 0; r < size; ++r) {
 		  MPI_CALL(Barrier(ospray::mpi::worker.comm));
