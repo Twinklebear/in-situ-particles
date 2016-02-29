@@ -73,7 +73,7 @@ namespace is_sim {
                                     (const char*)&flag, sizeof(int)); }
 #endif
   
-    int port = 290374;
+    int port = 29374;
 
     /*! bind socket to port */
     struct sockaddr_in serv_addr;
