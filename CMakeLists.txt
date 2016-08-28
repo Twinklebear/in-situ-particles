@@ -47,11 +47,10 @@ IF (OSPRAY_MODULE_PARTIKD)
     ospray/TraversePacket.ispc
     ospray/TraverseSPMD.ispc
 
-	ospray/InSituSpheres.cpp
-	ospray/InSituSpheres.ispc
-	# Add libIS stuff for InSituSpheres
-	libIS/is_render.cpp
-	libIS/is_sim.cpp
+    ospray/InSituSpheres.cpp
+    # Add libIS stuff for InSituSpheres
+    libIS/is_render.cpp
+    libIS/is_sim.cpp
 
     ospray/render/PKDSplatter.ispc
     ospray/render/PKDSplatter.cpp
