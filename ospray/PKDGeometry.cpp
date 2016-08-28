@@ -161,8 +161,8 @@ namespace ospray {
                               numInnerNodes,
                               (ispc::PKDParticle*)particle,
                               attribute,binBitsArray,
-                              (ispc::box3f&)centerBounds,(ispc::box3f&)sphereBounds,
-							  (ispc::box3f&)sphereBounds,
+                              (ispc::box3f&)sphereBounds,
+                              (ispc::box3f&)sphereBounds,
                               attr_lo,attr_hi);
   }    
 

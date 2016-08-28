@@ -57,9 +57,6 @@ struct PartiKDGeometry {
   //   dim==(depth%3) */
   // unsigned int32 *innerNode_splitDim; 
 
-  //! bounding box of particle centers
-  box3f centerBounds;
-
   //! bounding box of complete particles (centerBounds+radius)
   box3f sphereBounds;
 

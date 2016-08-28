@@ -167,7 +167,7 @@ namespace ospray {
         (ispc::PKDParticle*)&particle_model->position[0],
         attribute,
         binBitsArray.data(),
-        (ispc::box3f&)centerBounds, (ispc::box3f&)sphereBounds,
+        (ispc::box3f&)sphereBounds,
         (ispc::box3f&)actualBounds,
         attr_lo,attr_hi);
 

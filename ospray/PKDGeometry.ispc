@@ -146,7 +146,6 @@ export void PartiKDGeometry_set(void       *uniform _geom,
                                 PKDParticle    *uniform particle,
                                 float          *uniform attribute,
                                 uint32         *uniform innerNode_attributeMask,
-                                uniform box3f &centerBounds,
                                 uniform box3f &sphereBounds,
                                 uniform box3f &actualBounds,
                                 uniform float attr_lo, 
@@ -164,7 +163,6 @@ export void PartiKDGeometry_set(void       *uniform _geom,
   geom->particle        = particle;
   geom->numParticles    = numParticles;
   geom->numInnerNodes   = numInnerNodes;
-  geom->centerBounds    = centerBounds;
   geom->sphereBounds    = sphereBounds;
   geom->actualBounds    = actualBounds;
   geom->attribute       = attribute;
