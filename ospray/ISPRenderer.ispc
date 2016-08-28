@@ -24,10 +24,39 @@
 #include "ospray/render/Renderer.ih"
 #include "ospray/render/simpleAO/SimpleAOMaterial.ih"
 
+#include "ospray/PKDGeometry.ih"
+
 struct ISPRenderer {
   uniform Renderer super;
   uniform int samplesPerFrame;
   uniform float aoRayLength;
+};
+
+struct DDSpheresBlock {
+  // The actual grid domain assigned for this block
+  box3f actualDomain;
+  // The full domain spanned by the particles in the block, accounting
+  // for ghost regions + particle radii
+  box3f sphereBounds;
+  int firstOwner;
+  int numOwners;
+  int isMine;
+
+  // TODO: The special renderer will know how to deal with the
+  // clipping of primary rays against the actual domain, the PKD
+  // geometry shouldn't have to care about this at all!
+  void *uniform cpp_pkd;
+  PartiKDGeometry *uniform ispc_pkd;
+};
+
+struct PassInfo {
+  // region to integrate over in this pass
+  // TODO: This changes to box1f
+  //varying box1f region;
+  varying region1f region;
+  // block to use in this pass - NULL for 'everything other than blocks'
+  // TODO: shouldn't this be a uniform DDBVolumeBlock?
+  DDSpheresBlock *uniform block;
 };
 
 inline vec3f getShadingNormal(const Ray &ray)
@@ -129,7 +158,7 @@ inline void shade_ao(uniform ISPRenderer *uniform self,
   for (uniform int i = 0; i < sampleCnt; i++) {
     const vec3f ao_dir = getRandomDir(rng, biNormU, biNormV, N, rot_x,
                                       rot_y,self->super.epsilon);
-    
+
     Ray ao_ray;
     setRay(ao_ray, dg.P + (1e-3f * N), ao_dir);
     ao_ray.t0 = self->super.epsilon;
@@ -166,6 +195,149 @@ void ISPRenderer_renderSample(uniform Renderer *uniform _self,
       sample.sampleID.x,
       sample.sampleID.y,
       rot_x,rot_y);
+}
+
+inline uniform bool shouldRenderBlock(DDSpheresBlock *uniform block,
+                                      uniform int32 tileID,
+                                      uniform int32 myRank)
+{
+  return block->isMine && (myRank - block->firstOwner) == (tileID % block->numOwners);
+}
+
+extern "C" Tile *uniform ISPCacheForTiles_getTile(void *uniform cache, uniform int32 blockID); 
+
+void ISPRenderer_renderSample(uniform ISPRenderer *uniform self,
+                              ScreenSample &fgSample,
+                              ScreenSample &bgSample,
+                              void *uniform _tileCache,
+                              uint32 pixelID,
+                              uniform int numBlocks,
+                              DDSpheresBlock *uniform block,
+                              bool *uniform tileNeedsBlock,
+                              uniform int32 tileID,
+                              uniform int32 myRank,
+                              uniform bool isMyTile)
+{
+  //box1f blockRegion = make_box1f(+inf,-inf);
+  region1f blockRegion = make_region1f(+inf,-inf);
+  float org_ray_t0 = fgSample.ray.t0;
+  float org_ray_t1 = fgSample.ray.t;
+  uniform int numBlocksMine = 0;
+  for (uniform int blockID = 0; blockID < numBlocks; ++blockID) {
+    float t0 = org_ray_t0;
+    float t1 = org_ray_t1;
+    intersectBox(fgSample.ray, block[blockID].actualDomain, t0, t1);
+    if (t0 >= t1) {
+      // ray does not intersect this block...
+    } else {
+      // ray hits this block, tile will need it rendered
+      if (!tileNeedsBlock[blockID]) {
+        tileNeedsBlock[blockID] = true;
+      }
+      blockRegion.lower = min(blockRegion.lower, t0);
+      blockRegion.upper = max(blockRegion.upper, t1);
+
+      // now, render this block if it's one of ours
+      if (!block[blockID].isMine) {
+        continue;
+      }
+      if (shouldRenderBlock(&block[blockID], tileID, myRank)) {
+        Tile *uniform blockTile = ISPCacheForTiles_getTile(_tileCache, blockID);
+
+        // -------------------------------------------------------
+        // set up pass for 'this block'
+        // -------------------------------------------------------
+        uniform PassInfo passInfo;
+        // set integration pass up for region from (at most) ray origin to
+        // start of blocks
+        //passInfo.region = make_box1f(t0,t1);
+        passInfo.region = make_region1f(t0,t1);
+        // do not use any block in this pass
+        passInfo.block = &block[blockID];
+        ++numBlocksMine;
+
+        /*
+        ISPRenderer_renderSample((uniform Renderer *uniform)self,
+                                    &passInfo, fgSample);
+        */
+
+        fgSample.ray.t0 = org_ray_t0;
+        fgSample.ray.t  = org_ray_t1;
+        setRGBAZ(*blockTile,pixelID,fgSample.rgb,fgSample.alpha,fgSample.z);
+      }
+    }
+  }
+
+  if (!isMyTile) return;
+
+  // If we own the tile also report the background color, since we have no
+  // replicated geometry in this renderer we don't need to send a foreground
+  // tile at all.
+  bgSample.rgb = make_vec3f(0.f,0.f,0.f);
+  bgSample.z = inf;
+  bgSample.alpha = 0.f;
+  if (self->super.backgroundEnabled) {
+    bgSample.rgb = self->super.bgColor;
+  }
+}
+
+export void ISPRendererDataDistrib_renderTile(void *uniform _self,
+                                              uniform Tile &bgTile,
+                                              void *uniform _tileCache,
+                                              uniform int numBlocks,
+                                              void *uniform _block,
+                                              uniform bool *uniform tileNeedsBlock,
+                                              uniform int32 tileID,
+                                              uniform int32 myRank,
+                                              uniform bool isMyTile,
+                                              uniform int taskIndex)
+{
+  uniform Renderer *uniform self = (uniform Renderer *uniform)_self;
+  DDSpheresBlock *uniform block = (DDSpheresBlock *uniform)_block;
+
+  uniform FrameBuffer *uniform fb     = self->fb;
+  uniform Camera      *uniform camera = self->camera;
+
+  float pixel_du = .5f, pixel_dv = .5f;
+  float lens_du = 0.f,  lens_dv = 0.f;
+
+  ScreenSample fgSample, bgSample;
+  fgSample.z = inf;
+  fgSample.alpha = 0.f;
+
+  CameraSample cameraSample;
+
+  const uniform int begin = taskIndex * RENDERTILE_PIXELS_PER_JOB;
+  const uniform int end   = begin     + RENDERTILE_PIXELS_PER_JOB;
+  const uniform int startSampleID = max(fb->accumID,0);
+
+  for (uniform uint32 i=begin;i<end;i+=programCount) {
+    const uint32 index = i + programIndex;
+    fgSample.sampleID.x        = bgTile.region.lower.x + z_order.xs[index];
+    fgSample.sampleID.y        = bgTile.region.lower.y + z_order.ys[index];
+
+    if ((fgSample.sampleID.x >= fb->size.x) |
+        (fgSample.sampleID.y >= fb->size.y))
+      continue;
+
+    const uint32 pixel = z_order.xs[index] + (z_order.ys[index] * TILE_SIZE);
+
+    pixel_du = precomputedHalton2(startSampleID);
+    pixel_dv = precomputedHalton3(startSampleID);
+    fgSample.sampleID.z = startSampleID;
+
+    cameraSample.screen.x = (fgSample.sampleID.x + pixel_du) * fb->rcpSize.x;
+    cameraSample.screen.y = (fgSample.sampleID.y + pixel_dv) * fb->rcpSize.y;
+
+    camera->initRay(camera,fgSample.ray,cameraSample);
+
+    bgSample = fgSample;
+    ISPRenderer_renderSample((ISPRenderer *uniform)self,
+                      fgSample, bgSample, _tileCache, pixel,
+                      numBlocks,block,tileNeedsBlock,tileID,myRank,isMyTile);
+
+    setRGBAZ(bgTile,pixel,bgSample.rgb,bgSample.alpha,bgSample.z);
+  }
 }
 
 export void *uniform ISPRenderer_create(void *uniform cppE,

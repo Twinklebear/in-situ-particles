@@ -70,6 +70,7 @@ namespace ospray {
 
     // TODO: We need to store DDBlock's of particle data like the data-distrib
     // volume rendering code.
+    std::vector<DDSpheres> ddSpheres;
     PartiKD *pkd;
     std::vector<uint32> binBitsArray;
     std::string server;
