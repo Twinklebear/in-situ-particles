@@ -16,6 +16,7 @@
 
 // ospray
 #include "ISPRenderer.h"
+#include "ISPDPRenderTask.h"
 #include "ospray/render/simpleAO/SimpleAOMaterial.h"
 #include "ospray/camera/Camera.h"
 #include "ospray/texture/Texture2D.h"
@@ -65,8 +66,22 @@ namespace ospray {
     if (!ospray::core::isMpiParallel()){
       throw std::runtime_error("ISPRenderer only makes sense in MPI parallel mode!");
     }
-    const int worker_rank = ospray::core::getWorkerRank();
-    assert(worker_rank >= 0);
+    const int workerRank = core::getWorkerRank();
+    assert(workerRank >= 0);
+
+    const InSituSpheres *isSpheres = nullptr;
+    for (size_t i = 0; i < model->geometry.size(); ++i) {
+      const InSituSpheres *is = dynamic_cast<const InSituSpheres*>(model->geometry[i].ptr);
+      if (is) {
+        if (isSpheres) {
+          throw std::runtime_error("Only one InSituSpheres distributed geometry is supported!");
+        }
+        isSpheres = is;
+      }
+    }
+    if (!isSpheres) {
+      throw std::runtime_error("No InSituSpheres geometry but using InSituSphere rendering!?");
+    }
 
     // We want to mirror what the data parallel volume renderer is doing here
     // but since I've hacked the MPILoadBalancer::Slave to do data-parallel we
@@ -82,7 +97,22 @@ namespace ospray {
 
     Renderer::beginFrame(fb);
 
-    // TODO: Continue like the data-distrib volume raycaster
+    dfb->startNewFrame();
+
+    // create the render task
+    ISPDPRenderTask renderTask;
+    renderTask.fb = fb;
+    renderTask.renderer = this;
+    renderTask.numTiles_x = divRoundUp(dfb->size.x,TILE_SIZE);
+    renderTask.numTiles_y = divRoundUp(dfb->size.y,TILE_SIZE);
+    renderTask.channelFlags = fbChannelFlags;
+    renderTask.isSpheres = isSpheres;
+
+    const size_t NTASKS = renderTask.numTiles_x * renderTask.numTiles_y;
+    parallel_for(NTASKS, renderTask);
+
+    dfb->waitUntilFinished();
+    Renderer::endFrame(NULL, fbChannelFlags);
 
     // TODO: This starts returning a float in ospray 1.0
     //return 0.f;
