@@ -25,78 +25,68 @@
 #include "apps/PartiKD.h"
 
 namespace ospray {
-  /*! @{ \ingroup ospray_module_streamlines */
-
-  /*! \defgroup geometry_InSituSpheres InSituSpheres ("InSituSpheres") 
-
-    \ingroup ospray_supported_geometries
-
-    \brief Geometry representing InSituSpheres with a per-sphere radius
-
-    Implements a geometry consisting of individual InSituSpheres, each of
-    which can have a radius.  To allow a variety of sphere
-    representations this geometry allows a flexible way of specifying
-    the offsets of origin, radius, and material ID within a data array
-    of 32-bit floats.
-
-    Parameters:
-    <dl>
-    <dt><code>float        radius = 0.01f</code></dt><dd>Base radius common to all InSituSpheres</dd>
-    <dt><code>Data<float>  InSituSpheres</code></dt><dd> Array of data elements.</dd>
-    </dl>
-
-    The functionality for this geometry is implemented via the
-    \ref ospray::InSituSpheres class.
-
-  */
 
   /*! \brief A geometry for a set of InSituSpheres
-
     Implements the \ref geometry_InSituSpheres geometry
-
-  */
+    */
   struct InSituSpheres : public Geometry {
-    //! \brief common function to help printf-debugging 
+    // A data-distributed block of particle data that we may or may not own.
+    // this mirrors the style of the DDBlock in datadistributedblockedvolume
+    struct DDSpheres {
+      // The actual grid domain assigned for this block
+      box3f actualDomain;
+      // The full domain spanned by the particles in the block, accounting
+      // for ghost regions + particle radii
+      box3f sphereBounds;
+      int firstOwner;
+      int numOwners;
+      int isMine;
+
+      Ref<PartiKD> pkd;
+      void *ispc_pkd;
+    };
+
+    //! \brief common function to help printf-debugging
     virtual std::string toString() const { return "ospray::InSituSpheres"; }
     /*! \brief integrates this geometry's primitives into the respective
       model's acceleration structure */
     virtual void finalize(Model *model);
-	box3f getBounds() const;
+    box3f getBounds() const;
 
-	//! radius for the spheres
-    float radius;   
-	/*! frequency (in seconds) to check for new timesteps, each timestep
-	 * query is blocking, so after getting a new timestep we'll wait
-	 * poll_rate seconds before requesting a new one. Default is 10s
-	 */
-	float poll_delay;
-	//! Transfer function used to color the spheres
+    //! radius for the spheres
+    float radius;
+    /*! frequency (in seconds) to check for new timesteps, each timestep
+     * query is blocking, so after getting a new timestep we'll wait
+     * poll_rate seconds before requesting a new one. Default is 10s
+     */
+    float poll_delay;
+    //! Transfer function used to color the spheres
     Ref<TransferFunction> transferFunction;
-	vec3i grid;
+    vec3i grid;
 
-	// TODO: We need to store DDBlock's of particle data like the data-distrib
-	// volume rendering code.
-	PartiKD *pkd;
-	std::vector<uint32> binBitsArray;
-	std::string server;
-	int port;
+    // TODO: We need to store DDBlock's of particle data like the data-distrib
+    // volume rendering code.
+    PartiKD *pkd;
+    std::vector<uint32> binBitsArray;
+    std::string server;
+    int port;
 
     InSituSpheres();
     virtual ~InSituSpheres();
-	virtual void dependencyGotChanged(ManagedObject *object);
+    virtual void dependencyGotChanged(ManagedObject *object);
 
   private:
-	PartiKD *next_pkd;
-	box3f next_actual_bounds;
+    PartiKD *next_pkd;
+    box3f next_actual_bounds;
 
-	// Repeatedly poll from the simulation until poller_exit 
-	// is set true
-	// Worker nodes should run this on a separate thread and call it repeatedly
-	// once we actual have the data from the sim tell the master that we're dirty and should
-	// re-commit. Then when re-committing we'll build the p-kd tree
-	void pollSimulation();
-	// Fetch new data from the simulation
-	void getTimeStep();
+    // Repeatedly poll from the simulation until poller_exit
+    // is set true
+    // Worker nodes should run this on a separate thread and call it repeatedly
+    // once we actual have the data from the sim tell the master that we're dirty and should
+    // re-commit. Then when re-committing we'll build the p-kd tree
+    void pollSimulation();
+    // Fetch new data from the simulation
+    void getTimeStep();
   };
   /*! @} */
 

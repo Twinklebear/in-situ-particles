@@ -104,6 +104,9 @@ namespace ospray {
     }
     pkd = next_pkd;
 
+    // TODO: All this construction work should be done in getTimeStep
+    // and in commit we should just swap out the DDSpheres vectors since we know
+    // it's safe at that point to remove the old PKDs
     ParticleModel *particle_model = pkd->model;
     const box3f centerBounds = getBounds();
     const box3f sphereBounds(centerBounds.lower - vec3f(radius), centerBounds.upper + vec3f(radius));
@@ -136,7 +139,7 @@ namespace ospray {
       MPI_CALL(Allreduce(&local_attr_lo, &attr_lo, 1, MPI_FLOAT, MPI_MIN, ospray::mpi::worker.comm));
       MPI_CALL(Allreduce(&local_attr_hi, &attr_hi, 1, MPI_FLOAT, MPI_MAX, ospray::mpi::worker.comm))
 
-        binBitsArray.resize(numInnerNodes, 0);
+      binBitsArray.resize(numInnerNodes, 0);
       size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
       for (long long pID = numInnerNodes - 1; pID >= 0; --pID) {
         size_t lID = 2*pID+1;
