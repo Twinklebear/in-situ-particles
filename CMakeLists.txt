@@ -48,6 +48,9 @@ IF (OSPRAY_MODULE_PARTIKD)
     ospray/TraverseSPMD.ispc
 
     ospray/InSituSpheres.cpp
+    ospray/ISPRenderer.cpp
+    ospray/ISPRenderer.ispc
+    ospray/ISPDPRenderTask.h
     # Add libIS stuff for InSituSpheres
     libIS/is_render.cpp
     libIS/is_sim.cpp
