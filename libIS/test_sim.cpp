@@ -2,12 +2,12 @@
 #include <unistd.h>
 #include <vector>
 
-struct vec3f {
-  float x, y, z;
+struct vec4f {
+  float x, y, z, w;
 };
 
 int rank, size;
-std::vector<vec3f> particle;
+std::vector<vec4f> particle;
 const float speed = .01f;
 
 void doTimeStep()
@@ -16,7 +16,7 @@ void doTimeStep()
 
   if (timeStep == 0) {
     for (int i=0;i<10000;i++) {
-      vec3f v;
+      vec4f v;
       v.x = (rank+drand48())/size;
       v.y = drand48();
       v.z = drand48();
@@ -33,7 +33,7 @@ void doTimeStep()
   MPI_CALL(Barrier(MPI_COMM_WORLD));
 
   printf("time step %i\n",timeStep++);
-  ospIsTimeStep(particle.size(),&particle[0].x,3);
+  ospIsTimeStep(particle.size(),&particle[0].x,4);
 }
 
 int main(int ac, char **av)
