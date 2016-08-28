@@ -81,6 +81,9 @@ namespace ospray {
     dfb->setFrameMode(DistributedFrameBuffer::ALPHA_BLENDING);
 
     Renderer::beginFrame(fb);
+
+    // TODO: Continue like the data-distrib volume raycaster
+
     // TODO: This starts returning a float in ospray 1.0
     //return 0.f;
   }

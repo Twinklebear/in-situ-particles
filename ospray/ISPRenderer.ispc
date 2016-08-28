@@ -179,7 +179,15 @@ void ISPRenderer_renderSample(uniform Renderer *uniform _self,
 {
   uniform ISPRenderer *uniform self = (uniform ISPRenderer *uniform)_self;
 
-  traceRay(self->super.model, sample.ray);
+  if (perFrameData) {
+    uniform PassInfo *uniform passInfo = (uniform PassInfo *uniform)perFrameData;
+    sample.ray.t0 = passInfo->region.lower;
+    sample.ray.t = passInfo->region.upper;
+    // PKD doesn't actually use the primID, so just pass 1
+    PartiKDGeometry_intersect_packet(passInfo->block->ispc_pkd, sample.ray, 1);
+  } else {
+    traceRay(self->super.model, sample.ray);
+  }
   sample.z = sample.ray.t;
 
   uniform int samplesPerFrame = self->samplesPerFrame;
@@ -204,7 +212,7 @@ inline uniform bool shouldRenderBlock(DDSpheresBlock *uniform block,
   return block->isMine && (myRank - block->firstOwner) == (tileID % block->numOwners);
 }
 
-extern "C" Tile *uniform ISPCacheForTiles_getTile(void *uniform cache, uniform int32 blockID); 
+extern "C" Tile *uniform ISPCacheForTiles_getTile(void *uniform cache, uniform int32 blockID);
 
 void ISPRenderer_renderSample(uniform ISPRenderer *uniform self,
                               ScreenSample &fgSample,
@@ -256,10 +264,7 @@ void ISPRenderer_renderSample(uniform ISPRenderer *uniform self,
         passInfo.block = &block[blockID];
         ++numBlocksMine;
 
-        /*
-        ISPRenderer_renderSample((uniform Renderer *uniform)self,
-                                    &passInfo, fgSample);
-        */
+        ISPRenderer_renderSample((uniform Renderer *uniform)self, &passInfo, fgSample);
 
         fgSample.ray.t0 = org_ray_t0;
         fgSample.ray.t  = org_ray_t1;
