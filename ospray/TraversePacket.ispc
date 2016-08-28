@@ -338,19 +338,7 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
 {
   float t_in = ray.t0, t_out = ray.t;
 
-#if CORRECT_RAY_CLIPPING
-  if (isShadowRay){
-#if CORRECT_AO
-	  intersectBox(ray, self->sphereBounds, t_in, t_out);
-#else
-	  intersectBox(ray, self->actualBounds, t_in, t_out);
-#endif
-  } else {
-	  intersectBox(ray, self->actualBounds, t_in, t_out);
-  }
-#else
   intersectBox(ray, self->sphereBounds, t_in, t_out);
-#endif
 
   if (t_out < t_in)
     return;

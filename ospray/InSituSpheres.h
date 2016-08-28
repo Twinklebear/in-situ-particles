@@ -23,6 +23,7 @@
 // pkd builder library
 #include "apps/ParticleModel.h"
 #include "apps/PartiKD.h"
+#include "PKDGeometry.h"
 
 namespace ospray {
 
@@ -42,7 +43,10 @@ namespace ospray {
       int numOwners;
       int isMine;
 
-      Ref<PartiKD> pkd;
+      // TODO: The special renderer will know how to deal with the
+      // clipping of primary rays against the actual domain, the PKD
+      // geometry shouldn't have to care about this at all!
+      Ref<PartiKDGeometry> pkd;
       void *ispc_pkd;
     };
 

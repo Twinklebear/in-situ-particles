@@ -171,7 +171,6 @@ namespace ospray {
         attribute,
         binBitsArray.data(),
         (ispc::box3f&)sphereBounds,
-        (ispc::box3f&)actualBounds,
         attr_lo,attr_hi);
 
     // Wait for all workers to finish building the pkd
