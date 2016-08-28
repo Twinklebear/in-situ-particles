@@ -74,6 +74,8 @@ namespace ospray {
     Ref<TransferFunction> transferFunction;
 	vec3i grid;
 
+	// TODO: We need to store DDBlock's of particle data like the data-distrib
+	// volume rendering code.
 	PartiKD *pkd;
 	std::vector<uint32> binBitsArray;
 	std::string server;
@@ -84,8 +86,8 @@ namespace ospray {
 	virtual void dependencyGotChanged(ManagedObject *object);
 
   private:
-	static PartiKD *next_pkd;
-	static box3f next_actual_bounds;
+	PartiKD *next_pkd;
+	box3f next_actual_bounds;
 
 	// Repeatedly poll from the simulation until poller_exit 
 	// is set true
