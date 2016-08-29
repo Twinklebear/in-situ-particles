@@ -32,6 +32,7 @@ namespace ospray {
   ISPRenderer::ISPRenderer(int defaultNumSamples)
     : defaultNumSamples(defaultNumSamples)
   {
+    PING;
     ispcEquivalent = ispc::ISPRenderer_create(this,NULL,NULL);
   }
   ISPRenderer::~ISPRenderer() {
@@ -118,15 +119,11 @@ namespace ospray {
     //return 0.f;
   }
 
-  // OSP_REGISTER_RENDERER(ISPRenderer, ao);
-
-  /*! \note Reintroduce aoX renderers for compatibility, they should be
-    depricated!*/
-
 #define OSP_REGISTER_AO_RENDERER(external_name, nSamples)               \
   extern "C" OSPRAY_INTERFACE                                           \
   Renderer *ospray_create_renderer__##external_name()                   \
   {                                                                     \
+    PING; \
     ISPRenderer *renderer = new ISPRenderer(nSamples);                        \
     return renderer;                                                    \
   }
@@ -139,5 +136,4 @@ namespace ospray {
   OSP_REGISTER_AO_RENDERER(isp16, 16);
 
 } // ::ospray
-
 
