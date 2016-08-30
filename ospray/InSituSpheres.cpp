@@ -56,7 +56,6 @@ namespace ospray {
     radius = getParam1f("radius", 0.01f);
     server = getParamString("server_name", NULL);
     poll_delay = getParam1f("poll_rate", 10.0);
-    transferFunction = (TransferFunction*)getParamObject("transferFunction", NULL);
     port = getParam1i("port", -1);
     if (server.empty() || port == -1){
       throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
@@ -76,8 +75,10 @@ namespace ospray {
       return;
     }
     ddSpheres = std::move(nextDDSpheres);
+    TransferFunction *tfn = (TransferFunction*)getParamObject("transferFunction", NULL);
     for (auto &spheres : ddSpheres) {
       std::cout << "committing.." << std::endl;
+      spheres.pkd->setParam("transferFunction", tfn);
       spheres.pkd->finalize(model);
       spheres.pkd->commit();
       spheres.ispc_pkd = spheres.pkd->getIE();
@@ -240,19 +241,15 @@ namespace ospray {
         OSP_DATA_SHARED_BUFFER);
     // TODO: Will need to manually release these. Do we actually need to
     // manually increment the refcount?
-    posData->refInc();
+    //posData->refInc();
     ddspheres.pkd = new PartiKDGeometry;
 
     ddspheres.pkd->findParam("position", 1)->set(posData);
-    if (!transferFunction) {
-      std::cout << "NO TRANSFER FCN" << std::endl;
-    }
-    ddspheres.pkd->findParam("transferFunction", 1)->set(transferFunction);
     ddspheres.pkd->findParam("radius", 1)->set(model.radius);
     if (!ddspheres.attributes.empty()) {
       Data *attribData = new Data(ddspheres.attributes.size(), OSP_FLOAT, ddspheres.attributes.data(),
           OSP_DATA_SHARED_BUFFER);
-      attribData->refInc();
+      //attribData->refInc();
       ddspheres.pkd->findParam("attribute", 1)->set(attribData);
     } else {
       std::cout << "No attributes on particles" << std::endl;

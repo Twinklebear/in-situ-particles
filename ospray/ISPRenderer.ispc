@@ -118,12 +118,8 @@ inline void shade_ao(uniform ISPRenderer *uniform self,
                      void *uniform perFrameData)
 {
   if (ray.geomID < 0) {
-#if 1
-    color = make_vec3f(0.1f);
-#else
     color = self->super.backgroundEnabled ? self->super.bgColor :
                                             make_vec3f(0.f);
-#endif
     alpha = self->super.backgroundEnabled ? 1.f : 0.f;
     return;
   }
@@ -170,26 +166,31 @@ inline void shade_ao(uniform ISPRenderer *uniform self,
                                       rot_y,self->super.epsilon);
 
     Ray ao_ray;
-    setRay(ao_ray, dg.P + (1e-3f * N), ao_dir);
+    setRay(ao_ray, dg.P, ao_dir);
     ao_ray.t0 = self->super.epsilon;
     ao_ray.t  = self->aoRayLength - self->super.epsilon;
     // TODO WILL: Reducing this from 0.05 to 0.015 helps reduce the shadowing on the Uintah model
+    /*
     if (dot(ao_ray.dir, N) < 0.05f) {
       ++hits;
-    } else if (passInfo) {
+    }
+    */
+    if (passInfo) {
       PartiKDGeometry_occluded_packet(passInfo->block->ispc_pkd, ao_ray, passInfo->block->blockID);
       if (ao_ray.geomID >= 0) {
         ++hits;
       }
-    } else if (isOccluded(self->super.model,ao_ray)) {
+    }
+    /*
+    else if (isOccluded(self->super.model,ao_ray)) {
       ++hits;
     }
-
+    */
   }
-  // TODO: THe normal also ends up wrong??
-  float diffuse = absf(dot(N,ray.dir));
-  //color = superColor * make_vec3f(diffuse * (1.0f - (float)hits/sampleCnt));
-  color = dg.color;
+
+  const float diffuse = absf(dot(N, ray.dir));
+  //superColor = (N + make_vec3f(1.f)) / 2.f;
+  color = superColor * make_vec3f(diffuse) * (1.0f - (float)hits/sampleCnt);
   alpha = 1.f;
   return;
 }
@@ -206,7 +207,6 @@ void ISPRenderer_renderSample(uniform Renderer *uniform _self,
     //sample.ray.t = passInfo->region.upper;
     PartiKDGeometry_intersect_packet(passInfo->block->ispc_pkd, sample.ray, passInfo->block->blockID);
   } else {
-    print("THIS SHOULD NEVER HAPPEN\n");
     traceRay(self->super.model, sample.ray);
   }
   sample.z = sample.ray.t;

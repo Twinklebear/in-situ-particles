@@ -35,7 +35,6 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                           uniform int64 flags)
 {
   uniform PartiKDGeometry *uniform THIS = (uniform PartiKDGeometry *uniform)geometry;
-
   dg.Ng = dg.Ns = ray.Ng;
   dg.material = NULL;
 
@@ -66,33 +65,28 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
     const vec3f color = THIS->transferFunction->getColorForValue(THIS->transferFunction,
                                                                  attrib);
     dg.color = make_vec4f(color.x,color.y,color.z,alpha);
-#else
-    foreach_unique(upper64 in ray.primID_hi64) {
-      if (upper64) print("UPPER: %\n",upper64);
-      uniform uint64 offs = upper64;
-      offs = offs << 32;
-      uniform float *uniform attribArray = THIS->attribute + offs;//; // + (((unsigned int64)upper64)<<32);
-      // normalize attribute to the [0,1] range (by normalizing relative
-      // to the attribute range stored in the min max BVH's root node
-      const uniform float attrib_lo = THIS->attr_lo;
-      const uniform float attrib_hi = THIS->attr_hi;
-      attrib_array += (unsigned int32)ray.primID;
-      const float attrib_org = attribArray[0]; //(unsigned int32)ray.primID];
-      const float attrib
-        = (attrib_org - attrib_lo)
-        * rcp(attrib_hi - attrib_lo + 1e-10f);
-      if (attrib >= 1.f || attrib <= 0.f) 
-        print("ATTRIB OUT OF RANGE:\n org %\n remapped %\n ID %:%\n range % %\n",
-              attrib_org,attrib,offs,ray.primID,attrib_lo,attrib_hi);
-      // compute alpha value from attribute value
-      const float alpha = THIS->transferFunction->getOpacityForValue(THIS->transferFunction,
-                                                                   attrib);
-      const vec3f color = THIS->transferFunction->getColorForValue(THIS->transferFunction,
-                                                                   attrib);
-      dg.color = make_vec4f(color.x,color.y,color.z,alpha);
-    }
-#endif
   }
+// some useful combinations; enums unfortunately don't work :-(
+#define  DG_NG_FACEFORWARD (DG_NG | DG_FACEFORWARD)
+#define  DG_NS_FACEFORWARD (DG_NS | DG_FACEFORWARD)
+#define  DG_NG_NORMALIZE   (DG_NG | DG_NORMALIZE)
+#define  DG_NS_NORMALIZE   (DG_NS | DG_NORMALIZE)
+
+  if ((flags & DG_NG_NORMALIZE) == DG_NG_NORMALIZE)
+    dg.Ng = safe_normalize(dg.Ng);
+  if ((flags & DG_NS_NORMALIZE) == DG_NS_NORMALIZE)
+    dg.Ns = safe_normalize(dg.Ns);
+  
+  if ((flags & DG_NG_FACEFORWARD) == DG_NG_FACEFORWARD)
+    if (dot(ray.dir,dg.Ng) >= 0.f) dg.Ng = neg(dg.Ng);
+  if ((flags & DG_NS_FACEFORWARD) == DG_NS_FACEFORWARD)
+    if (dot(ray.dir,dg.Ns) >= 0.f) dg.Ns = neg(dg.Ns);
+
+#undef  DG_NG_FACEFORWARD
+#undef  DG_NS_FACEFORWARD
+#undef  DG_NG_NORMALIZE
+#undef  DG_NS_NORMALIZE
+
 }
 
 void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,

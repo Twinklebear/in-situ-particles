@@ -66,8 +66,6 @@ namespace ospray {
      * poll_rate seconds before requesting a new one. Default is 10s
      */
     float poll_delay;
-    //! Transfer function used to color the spheres
-    Ref<TransferFunction> transferFunction;
     vec3i grid;
 
     // TODO: We need to store DDBlock's of particle data like the data-distrib
