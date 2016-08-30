@@ -35,11 +35,13 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                           uniform int64 flags)
 {
   uniform PartiKDGeometry *uniform THIS = (uniform PartiKDGeometry *uniform)geometry;
+  dg.geometry = geometry;
+  dg.material = geometry->material;
+  dg.P = ray.org + ray.t * ray.dir;
   dg.Ng = dg.Ns = ray.Ng;
   dg.material = NULL;
 
   if ((flags & DG_COLOR) && (THIS->attribute != NULL) && (THIS->transferFunction != NULL)) {
-#if 1
     uniform float *uniform attribArray = THIS->attribute;
     const uniform float attrib_lo = THIS->attr_lo;
     const uniform float attrib_hi = THIS->attr_hi;
