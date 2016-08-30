@@ -21,6 +21,7 @@ namespace ospray {
       int firstOwner;
       int numOwners;
       int isMine;
+      int blockID;
 
       // TODO: The special renderer will know how to deal with the
       // clipping of primary rays against the actual domain, the PKD

@@ -32,7 +32,6 @@ namespace ospray {
   ISPRenderer::ISPRenderer(int defaultNumSamples)
     : defaultNumSamples(defaultNumSamples)
   {
-    PING;
     ispcEquivalent = ispc::ISPRenderer_create(this,NULL,NULL);
   }
   ISPRenderer::~ISPRenderer() {
@@ -109,7 +108,6 @@ namespace ospray {
 
     dfb->waitUntilFinished();
     Renderer::endFrame(NULL, fbChannelFlags);
-    PING;
 
     // TODO: This starts returning a float in ospray 1.0
     //return 0.f;
@@ -119,8 +117,7 @@ namespace ospray {
   extern "C" OSPRAY_INTERFACE                                           \
   Renderer *ospray_create_renderer__##external_name()                   \
   {                                                                     \
-    PING; \
-    ISPRenderer *renderer = new ISPRenderer(nSamples);                        \
+    ISPRenderer *renderer = new ISPRenderer(nSamples);                  \
     return renderer;                                                    \
   }
 

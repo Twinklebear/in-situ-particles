@@ -80,6 +80,7 @@ namespace ospray {
     model's acceleration structure */
   void PartiKDGeometry::finalize(Model *model) 
   {
+    PING;
     // -------------------------------------------------------
     // parse parameters, using hard assertions (exceptions) for now.
     //

@@ -47,6 +47,7 @@ namespace ospray {
         b.extend(s.pkd->getBounds());
       }
     }
+    PING;
     return b;
   }
 
@@ -77,9 +78,12 @@ namespace ospray {
     ddSpheres = std::move(nextDDSpheres);
     for (auto &spheres : ddSpheres) {
       std::cout << "committing.." << std::endl;
+      spheres.pkd->finalize(model);
       spheres.pkd->commit();
       spheres.ispc_pkd = spheres.pkd->getIE();
     }
+
+    PING;
 
     // Wait for all workers to finish committing their pkds
     MPI_CALL(Barrier(ospray::mpi::worker.comm));
@@ -123,7 +127,7 @@ namespace ospray {
       if (b.isMine) {
         buildPKDBlock(b, spheres);
       }
-      nextDDSpheres.push_back(spheres);
+      nextDDSpheres.push_back(std::move(spheres));
     }
     MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
@@ -231,17 +235,28 @@ namespace ospray {
 
     ddspheres.positions = std::move(model.position);
     ddspheres.attributes = std::move(model.getAttribute(attribute_name)->value);
-    // TODO: Will these leak? Or be prematurely cleaned up?
-    Ref<Data> posData = new Data(ddspheres.positions.size(), OSP_FLOAT, ddspheres.positions.data(),
+    // TODO: The positions data is being lost??
+    Data *posData = new Data(ddspheres.positions.size(), OSP_FLOAT3, ddspheres.positions.data(),
         OSP_DATA_SHARED_BUFFER);
-    Ref<Data> attribData = new Data(ddspheres.attributes.size(), OSP_FLOAT, ddspheres.attributes.data(),
-        OSP_DATA_SHARED_BUFFER);
+    // TODO: Will need to manually release these. Do we actually need to
+    // manually increment the refcount?
+    posData->refInc();
     ddspheres.pkd = new PartiKDGeometry;
 
     ddspheres.pkd->findParam("position", 1)->set(posData);
-    ddspheres.pkd->findParam("attribute", 1)->set(attribData);
+    if (!transferFunction) {
+      std::cout << "NO TRANSFER FCN" << std::endl;
+    }
     ddspheres.pkd->findParam("transferFunction", 1)->set(transferFunction);
     ddspheres.pkd->findParam("radius", 1)->set(model.radius);
+    if (!ddspheres.attributes.empty()) {
+      Data *attribData = new Data(ddspheres.attributes.size(), OSP_FLOAT, ddspheres.attributes.data(),
+          OSP_DATA_SHARED_BUFFER);
+      attribData->refInc();
+      ddspheres.pkd->findParam("attribute", 1)->set(attribData);
+    } else {
+      std::cout << "No attributes on particles" << std::endl;
+    }
   }
 
   OSP_REGISTER_GEOMETRY(InSituSpheres,InSituSpheres);

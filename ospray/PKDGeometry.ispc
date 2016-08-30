@@ -37,6 +37,7 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
   uniform PartiKDGeometry *uniform THIS = (uniform PartiKDGeometry *uniform)geometry;
 
   dg.Ng = dg.Ns = ray.Ng;
+  dg.material = NULL;
 
   if ((flags & DG_COLOR) && (THIS->attribute != NULL) && (THIS->transferFunction != NULL)) {
 #if 1
@@ -158,6 +159,7 @@ export void PartiKDGeometry_set(void       *uniform _geom,
   geom->geometry.model  = model;
   geom->isQuantized     = isQuantized;
   geom->geometry.geomID = geomID;
+  print("pkd geom id = %\n", geomID);
   geom->particleRadius  = particleRadius;
   geom->particle        = particle;
   geom->numParticles    = numParticles;

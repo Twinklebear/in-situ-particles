@@ -12,14 +12,16 @@ namespace ospray {
     : renderer(renderer), fb(fb), numTiles_x(numTiles_x), numTiles_y(numTiles_y),
     channelFlags(channelFlags), isSpheres(isSpheres)
   {
+    int nextBlockID = 0;
     for (auto &b : isSpheres->ddSpheres) {
       ISPCDDSpheresBlock ispcBlock;
       ispcBlock.actualDomain = b.actualDomain;
       ispcBlock.firstOwner = b.firstOwner;
       ispcBlock.numOwners = b.numOwners;
       ispcBlock.isMine = b.isMine;
+      ispcBlock.blockID = nextBlockID++;
       ispcBlock.cpp_pkd = static_cast<void*>(b.pkd.ptr);
-      ispcBlock.ispc_pkd = b.ispc_pkd;
+      ispcBlock.ispc_pkd = b.pkd->getIE();
       pkdBlocks.push_back(ispcBlock);
     }
   }
@@ -81,9 +83,6 @@ namespace ospray {
       for (size_t blockID = 0; blockID < numBlocks; blockID++) {
         if (blockWasVisible[blockID])
           totalBlocksInTile++;
-      }
-      if (totalBlocksInTile != 0){
-        std::cout << "got " << totalBlocksInTile << " blocks in tile " << tileID << "\n";
       }
 
       /* I expect one additional tile for background tile.

@@ -38,12 +38,13 @@ struct DDSpheresBlock {
   int firstOwner;
   int numOwners;
   int isMine;
+  int blockID;
 
   // TODO: The special renderer will know how to deal with the
   // clipping of primary rays against the actual domain, the PKD
   // geometry shouldn't have to care about this at all!
   void *uniform cpp_pkd;
-  PartiKDGeometry *uniform ispc_pkd;
+  uniform PartiKDGeometry *uniform ispc_pkd;
 };
 
 struct PassInfo {
@@ -53,7 +54,7 @@ struct PassInfo {
   varying region1f region;
   // block to use in this pass - NULL for 'everything other than blocks'
   // TODO: shouldn't this be a uniform DDBVolumeBlock?
-  DDSpheresBlock *uniform block;
+  uniform DDSpheresBlock *uniform block;
 };
 
 inline vec3f getShadingNormal(const Ray &ray)
@@ -113,19 +114,31 @@ inline void shade_ao(uniform ISPRenderer *uniform self,
                      const int32 pixel_x,
                      const int32 pixel_y,
                      const float rot_x,
-                     const float rot_y)
+                     const float rot_y,
+                     void *uniform perFrameData)
 {
   if (ray.geomID < 0) {
+#if 1
+    color = make_vec3f(0.1f);
+#else
     color = self->super.backgroundEnabled ? self->super.bgColor :
                                             make_vec3f(0.f);
+#endif
     alpha = self->super.backgroundEnabled ? 1.f : 0.f;
     return;
   }
+  uniform PassInfo *uniform passInfo = (uniform PassInfo *uniform)perFrameData;
 
   DifferentialGeometry dg;
-  postIntersect(self->super.model,dg,ray,
-                DG_NG|DG_NS|DG_NORMALIZE|DG_FACEFORWARD
-                |DG_MATERIALID|DG_COLOR|DG_TEXCOORD);
+  if (passInfo) {
+    PartiKDGeometry_postIntersect((uniform Geometry *uniform)passInfo->block->ispc_pkd,
+        self->super.model, dg, ray,
+        DG_NG|DG_NS|DG_NORMALIZE|DG_FACEFORWARD|DG_COLOR|DG_TEXCOORD);
+  } else {
+    postIntersect(self->super.model,dg,ray,
+                  DG_NG|DG_NS|DG_NORMALIZE|DG_FACEFORWARD
+                  |DG_MATERIALID|DG_COLOR|DG_TEXCOORD);
+  }
 
   uniform SimpleAOMaterial *mat = ((uniform SimpleAOMaterial*)dg.material);
   vec3f superColor = make_vec3f(1.f);
@@ -161,11 +174,22 @@ inline void shade_ao(uniform ISPRenderer *uniform self,
     ao_ray.t0 = self->super.epsilon;
     ao_ray.t  = self->aoRayLength - self->super.epsilon;
     // TODO WILL: Reducing this from 0.05 to 0.015 helps reduce the shadowing on the Uintah model
-    if (dot(ao_ray.dir, N) < 0.05f || isOccluded(self->super.model,ao_ray))
-      hits++;
+    if (dot(ao_ray.dir, N) < 0.05f) {
+      ++hits;
+    } else if (passInfo) {
+      PartiKDGeometry_occluded_packet(passInfo->block->ispc_pkd, ao_ray, passInfo->block->blockID);
+      if (ao_ray.geomID >= 0) {
+        ++hits;
+      }
+    } else if (isOccluded(self->super.model,ao_ray)) {
+      ++hits;
+    }
+
   }
+  // TODO: THe normal also ends up wrong??
   float diffuse = absf(dot(N,ray.dir));
-  color = superColor * make_vec3f(diffuse * (1.0f - (float)hits/sampleCnt));
+  //color = superColor * make_vec3f(diffuse * (1.0f - (float)hits/sampleCnt));
+  color = dg.color;
   alpha = 1.f;
   return;
 }
@@ -178,15 +202,14 @@ void ISPRenderer_renderSample(uniform Renderer *uniform _self,
 
   if (perFrameData) {
     uniform PassInfo *uniform passInfo = (uniform PassInfo *uniform)perFrameData;
-    sample.ray.t0 = passInfo->region.lower;
-    sample.ray.t = passInfo->region.upper;
-    // PKD doesn't actually use the primID, so just pass 1
-    PartiKDGeometry_intersect_packet(passInfo->block->ispc_pkd, sample.ray, 1);
+    //sample.ray.t0 = passInfo->region.lower;
+    //sample.ray.t = passInfo->region.upper;
+    PartiKDGeometry_intersect_packet(passInfo->block->ispc_pkd, sample.ray, passInfo->block->blockID);
   } else {
+    print("THIS SHOULD NEVER HAPPEN\n");
     traceRay(self->super.model, sample.ray);
   }
   sample.z = sample.ray.t;
-
   uniform int samplesPerFrame = self->samplesPerFrame;
   uniform int framesPer16 = 16 / samplesPerFrame;
   int accumID = sample.sampleID.z / framesPer16;
@@ -199,15 +222,14 @@ void ISPRenderer_renderSample(uniform Renderer *uniform _self,
       sample.ray,
       sample.sampleID.x,
       sample.sampleID.y,
-      rot_x,rot_y);
+      rot_x,rot_y,
+      perFrameData);
 }
 
 inline uniform bool shouldRenderBlock(DDSpheresBlock *uniform block,
                                       uniform int32 tileID,
                                       uniform int32 myRank)
 {
-  print("isMine %, myRank %, firstOwner %, tileID %, numOwners %\n",
-      block->isMine, myRank, block->firstOwner, tileID, block->numOwners);
   return block->isMine && (myRank - block->firstOwner) == (tileID % block->numOwners);
 }
 
