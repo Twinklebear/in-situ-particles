@@ -152,14 +152,14 @@ namespace ospray {
                          const float ghosting)
     : dims(dims), worldBounds(domain)
   {
-    size_t numBlocks = dims.x*dims.y*dims.z;
+    numBlocks = dims.x*dims.y*dims.z;
     block = new Block[numBlocks];
     int bID = 0;
     for (int iz=0;iz<dims.z;iz++)
       for (int iy=0;iy<dims.y;iy++)
         for (int ix=0;ix<dims.x;ix++, bID++) {
           Block &b = block[bID];
-		  vec3f block_id = vec3f(ix, iy, iz);
+          vec3f block_id = vec3f(ix, iy, iz);
           vec3f f_lo = vec3f(ix,iy,iz) / vec3f(dims);
           vec3f f_up = vec3f(ix+1,iy+1,iz+1) / vec3f(dims);
           b.actualDomain.lower
@@ -204,17 +204,21 @@ namespace ospray {
 		  // Then the regions themselves are disjoint & convex but the total
 		  // regions rendered by each node are not necessarily so. Would
 		  // compositing work here?
-          if (numBlocks >= size) {
-            b.firstOwner = bID % size;
-            b.numOwners = 1;
-          } else {
-            b.firstOwner = (bID * size) / numBlocks;
-            b.numOwners = ((bID+1) * size) / numBlocks - b.firstOwner;
-          }
+      if (numBlocks >= size) {
+        b.firstOwner = bID % size;
+        b.numOwners = 1;
+      } else {
+        b.firstOwner = (bID * size) / numBlocks;
+        b.numOwners = ((bID+1) * size) / numBlocks - b.firstOwner;
+      }
 
-          if (rank >= b.firstOwner && rank < b.firstOwner+b.numOwners)
-            myBlock.push_back(bID);
-        }
+      if (rank >= b.firstOwner && rank < b.firstOwner+b.numOwners) {
+        b.isMine = true;
+        myBlock.push_back(bID);
+      } else {
+        b.isMine = false;
+      }
+    }
   }
   DomainGrid::~DomainGrid(){
 	  delete[] block;

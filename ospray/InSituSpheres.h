@@ -20,6 +20,7 @@
 #include <thread>
 #include "ospray/geometry/Geometry.h"
 #include "ospray/transferFunction/TransferFunction.h"
+#include "libIS/is_render.h"
 // pkd builder library
 #include "apps/ParticleModel.h"
 #include "apps/PartiKD.h"
@@ -38,14 +39,15 @@ namespace ospray {
       box3f actualDomain;
       // The full domain spanned by the particles in the block, accounting
       // for ghost regions + particle radii
-      box3f sphereBounds;
+      // TODO: I don't think we need this, the pkd tracks this
+      //box3f sphereBounds;
       int firstOwner;
       int numOwners;
       int isMine;
+      // The position and attribute data shared with the pkd geometry
+      std::vector<vec3f> positions;
+      std::vector<float> attributes;
 
-      // TODO: The special renderer will know how to deal with the
-      // clipping of primary rays against the actual domain, the PKD
-      // geometry shouldn't have to care about this at all!
       Ref<PartiKDGeometry> pkd;
       void *ispc_pkd;
     };
@@ -71,19 +73,15 @@ namespace ospray {
     // TODO: We need to store DDBlock's of particle data like the data-distrib
     // volume rendering code.
     std::vector<DDSpheres> ddSpheres;
-    PartiKD *pkd;
-    std::vector<uint32> binBitsArray;
     std::string server;
     int port;
 
     InSituSpheres();
     virtual ~InSituSpheres();
-    virtual void dependencyGotChanged(ManagedObject *object);
 
   private:
-    PartiKD *next_pkd;
-    box3f next_actual_bounds;
-
+    // The next set of particle data that we'll be switching too
+    std::vector<DDSpheres> nextDDSpheres;
     // Repeatedly poll from the simulation until poller_exit
     // is set true
     // Worker nodes should run this on a separate thread and call it repeatedly
@@ -92,6 +90,8 @@ namespace ospray {
     void pollSimulation();
     // Fetch new data from the simulation
     void getTimeStep();
+    // Build the PKD tree on the block of particles in the grid into the DDSpheres passed
+    void buildPKDBlock(const DomainGrid::Block &b, DDSpheres &ddspheres) const;
   };
   /*! @} */
 

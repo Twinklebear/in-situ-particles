@@ -70,9 +70,9 @@ namespace ospray {
     const int workerRank = core::getWorkerRank();
     assert(workerRank >= 0);
 
-    const InSituSpheres *isSpheres = nullptr;
+    InSituSpheres *isSpheres = nullptr;
     for (size_t i = 0; i < model->geometry.size(); ++i) {
-      const InSituSpheres *is = dynamic_cast<const InSituSpheres*>(model->geometry[i].ptr);
+      InSituSpheres *is = dynamic_cast<InSituSpheres*>(model->geometry[i].ptr);
       if (is) {
         if (isSpheres) {
           throw std::runtime_error("Only one InSituSpheres distributed geometry is supported!");
@@ -101,19 +101,15 @@ namespace ospray {
     dfb->startNewFrame();
 
     // create the render task
-    ISPDPRenderTask renderTask;
-    renderTask.fb = fb;
-    renderTask.renderer = this;
-    renderTask.numTiles_x = divRoundUp(dfb->size.x,TILE_SIZE);
-    renderTask.numTiles_y = divRoundUp(dfb->size.y,TILE_SIZE);
-    renderTask.channelFlags = fbChannelFlags;
-    renderTask.isSpheres = isSpheres;
+    ISPDPRenderTask renderTask(this, fb, divRoundUp(dfb->size.x,TILE_SIZE),
+        divRoundUp(dfb->size.y,TILE_SIZE), fbChannelFlags, isSpheres);
 
     const size_t NTASKS = renderTask.numTiles_x * renderTask.numTiles_y;
     parallel_for(NTASKS, renderTask);
 
     dfb->waitUntilFinished();
     Renderer::endFrame(NULL, fbChannelFlags);
+    PING;
 
     // TODO: This starts returning a float in ospray 1.0
     //return 0.f;

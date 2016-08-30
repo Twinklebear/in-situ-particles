@@ -6,6 +6,24 @@
 #include "ISPRenderer_ispc.h"
 
 namespace ospray {
+  ISPDPRenderTask::ISPDPRenderTask(Ref<Renderer> renderer, Ref<FrameBuffer> fb,
+      size_t numTiles_x, size_t numTiles_y, uint32 channelFlags,
+      InSituSpheres *isSpheres)
+    : renderer(renderer), fb(fb), numTiles_x(numTiles_x), numTiles_y(numTiles_y),
+    channelFlags(channelFlags), isSpheres(isSpheres)
+  {
+    for (auto &b : isSpheres->ddSpheres) {
+      ISPCDDSpheresBlock ispcBlock;
+      ispcBlock.actualDomain = b.actualDomain;
+      ispcBlock.firstOwner = b.firstOwner;
+      ispcBlock.numOwners = b.numOwners;
+      ispcBlock.isMine = b.isMine;
+      ispcBlock.cpp_pkd = static_cast<void*>(b.pkd.ptr);
+      ispcBlock.ispc_pkd = b.ispc_pkd;
+      pkdBlocks.push_back(ispcBlock);
+    }
+  }
+
   // This is basically a straight copy from the data-distributed DVR
   void ISPDPRenderTask::operator()(int taskID) const {
     const size_t tileID = taskID;
@@ -46,7 +64,7 @@ namespace ospray {
             (ispc::Tile&)bgTile,
             &blockTileCache,
             numBlocks,
-            const_cast<InSituSpheres::DDSpheres*>(isSpheres->ddSpheres.data()),
+            const_cast<ISPCDDSpheresBlock*>(pkdBlocks.data()),
             blockWasVisible,
             tileID,
             ospray::core::getWorkerRank(),
@@ -63,6 +81,9 @@ namespace ospray {
       for (size_t blockID = 0; blockID < numBlocks; blockID++) {
         if (blockWasVisible[blockID])
           totalBlocksInTile++;
+      }
+      if (totalBlocksInTile != 0){
+        std::cout << "got " << totalBlocksInTile << " blocks in tile " << tileID << "\n";
       }
 
       /* I expect one additional tile for background tile.

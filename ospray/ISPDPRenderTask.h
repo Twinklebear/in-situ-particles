@@ -13,7 +13,28 @@ namespace ospray {
     size_t numTiles_x;
     size_t numTiles_y;
     uint32 channelFlags;
-    const InSituSpheres *isSpheres;
+    InSituSpheres *isSpheres;
+
+    struct ISPCDDSpheresBlock {
+      // The actual grid domain assigned for this block
+      box3f actualDomain;
+      int firstOwner;
+      int numOwners;
+      int isMine;
+
+      // TODO: The special renderer will know how to deal with the
+      // clipping of primary rays against the actual domain, the PKD
+      // geometry shouldn't have to care about this at all!
+      void *cpp_pkd;
+      void *ispc_pkd;
+    };
+    // Because the layouts don't match anymore we need a seprate copy
+    // of the blocks that we can share with ISPC
+    std::vector<ISPCDDSpheresBlock> pkdBlocks;
+
+    ISPDPRenderTask(Ref<Renderer> renderer, Ref<FrameBuffer> fb,
+        size_t numTiles_x, size_t numTiles_y, uint32 channelFlags,
+        InSituSpheres *isSpheres);
 
     void operator()(int taskID) const;
   };

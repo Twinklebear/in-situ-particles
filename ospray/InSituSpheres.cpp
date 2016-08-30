@@ -24,50 +24,30 @@
 #include "PKDGeometry.h"
 #include "ospray/common/Data.h"
 #include "ospray/common/Model.h"
-#include "libIS/is_render.h"
 #include "ospray/mpi/MPICommon.h"
-// ispc-generated files
-#include "InSituSpheres_ispc.h"
-#include "PKDGeometry_ispc.h"
 
 #include "../testing_defines.h"
 
 namespace ospray {
   const std::string attribute_name = "attrib";
-  box3f world_bounds = embree::empty;
 
-  InSituSpheres::InSituSpheres() : pkd(nullptr), next_pkd(nullptr)
-  {
-    ispcEquivalent = ispc::PartiKDGeometry_create(this);
-  }
+  InSituSpheres::InSituSpheres(){}
 
   InSituSpheres::~InSituSpheres()
   {
-    std::cout << "ospray::geometry::~InSituSpheres\n";
-    // It seems like this isn't called when we commit? Yet I thought
-    // we were deleting ourselves on accident?
-    if (pkd){
-      delete pkd->model;
-      delete pkd;
-    }
+    PING;
+    ddSpheres.clear();
   }
 
   box3f InSituSpheres::getBounds() const
   {
     box3f b = empty;
-    if (pkd){
-      ParticleModel *model = pkd->model;
-      PRINT(model->position.size());
-      for (size_t i = 0; i < model->position.size(); ++i){
-        b.extend(model->position[i]);
+    if (!ddSpheres.empty()){
+      for (const auto &s : ddSpheres) {
+        b.extend(s.pkd->getBounds());
       }
     }
     return b;
-  }
-
-  void InSituSpheres::dependencyGotChanged(ManagedObject *object)
-  {
-    ispc::PartiKDGeometry_updateTransferFunction(this->getIE(), transferFunction->getIE());
   }
 
   void InSituSpheres::finalize(Model *model)
@@ -80,100 +60,28 @@ namespace ospray {
     if (server.empty() || port == -1){
       throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
     }
-    if (transferFunction){
-      transferFunction->registerListener(this);
-    }
     const char *osp_data_parallel = getenv("OSPRAY_DATA_PARALLEL");
     if (!osp_data_parallel || std::sscanf(osp_data_parallel, "%dx%dx%d", &grid.x, &grid.y, &grid.z) != 3){
       throw std::runtime_error("#ospray:geometry/InSituSpheres: Must set OSPRAY_DATA_PARALLEL=XxYxZ"
           " for data parallel rendering!");
     }
 
-    if (pkd){
-      delete pkd->model;
-      delete pkd;
-    }
-
     // Do a single blocking poll to get an initial timestep to render if the thread
     // hasn't been started
-    if (!next_pkd){
+    if (nextDDSpheres.empty()){
       std::cout << "ospray::InSituSpheres: Making blocking initial query\n";
       getTimeStep();
       // We're going to be re-committed immediately so just bail out for now
       return;
     }
-    pkd = next_pkd;
-
-    // TODO: All this construction work should be done in getTimeStep
-    // and in commit we should just swap out the DDSpheres vectors since we know
-    // it's safe at that point to remove the old PKDs
-    ParticleModel *particle_model = pkd->model;
-    const box3f centerBounds = getBounds();
-    const box3f sphereBounds(centerBounds.lower - vec3f(radius), centerBounds.upper + vec3f(radius));
-    box3f actualBounds = next_actual_bounds;
-
-    // compute attribute mask and attrib lo/hi values
-    float attr_lo = 0.f, attr_hi = 0.f;
-    float *attribute = NULL;
-    if (particle_model->hasAttribute(attribute_name)){
-      size_t numParticles = pkd->numParticles;
-      size_t numInnerNodes = pkd->numInnerNodes;
-
-      attribute = particle_model->getAttribute(attribute_name)->value.data();
-      assert(numParticles == particle_model->getAttribute(attribute_name)->value.size());
-
-      float local_attr_lo = 0.f, local_attr_hi = 0.f;
-#if !USE_RENDER_RANK_ATTRIB
-      local_attr_lo = local_attr_hi = attribute[0];
-      for (size_t i=0;i<numParticles;i++){
-        local_attr_lo = std::min(local_attr_lo,attribute[i]);
-        local_attr_hi = std::max(local_attr_hi,attribute[i]);
-      }
-#else
-      local_attr_lo = 0;
-      local_attr_hi = static_cast<float>(ospray::mpi::worker.size);
-#endif
-      // We need to figure out the min/max attribute range over ALL the workers
-      // to properly color by attribute with the same transfer function. Otherwise
-      // workers will map different values to the same color
-      MPI_CALL(Allreduce(&local_attr_lo, &attr_lo, 1, MPI_FLOAT, MPI_MIN, ospray::mpi::worker.comm));
-      MPI_CALL(Allreduce(&local_attr_hi, &attr_hi, 1, MPI_FLOAT, MPI_MAX, ospray::mpi::worker.comm))
-
-      binBitsArray.resize(numInnerNodes, 0);
-      size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
-      for (long long pID = numInnerNodes - 1; pID >= 0; --pID) {
-        size_t lID = 2*pID+1;
-        size_t rID = lID+1;
-        uint32 lBits = 0, rBits = 0;
-        if (rID < numInnerNodes)
-          rBits = binBitsArray[rID];
-        else if (rID < numParticles)
-          rBits = getAttributeBits(attribute[rID],attr_lo,attr_hi);
-        if (lID < numInnerNodes)
-          lBits = binBitsArray[lID];
-        else if (lID < numParticles)
-          lBits = getAttributeBits(attribute[lID],attr_lo,attr_hi);
-        binBitsArray[pID] = lBits|rBits;
-      }
-      std::cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi << "]\n";
+    ddSpheres = std::move(nextDDSpheres);
+    for (auto &spheres : ddSpheres) {
+      std::cout << "committing.." << std::endl;
+      spheres.pkd->commit();
+      spheres.ispc_pkd = spheres.pkd->getIE();
     }
 
-    std::cout << "ospray::InSituSpheres: setting pkd geometry\n"
-      << "\tsphereBounds = " << sphereBounds
-      << "\n\tactualBounds = " << actualBounds << "\n";
-    assert(particle_model);
-    ispc::PartiKDGeometry_set(getIE(), model->getIE(), false, false,
-        transferFunction ? transferFunction->getIE() : NULL,
-        radius,
-        pkd->numParticles, // TODO: Handle no particles
-        pkd->numInnerNodes,
-        (ispc::PKDParticle*)&particle_model->position[0],
-        attribute,
-        binBitsArray.data(),
-        (ispc::box3f&)sphereBounds,
-        attr_lo,attr_hi);
-
-    // Wait for all workers to finish building the pkd
+    // Wait for all workers to finish committing their pkds
     MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
 #if !POLL_ONCE
@@ -199,66 +107,32 @@ namespace ospray {
     DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, server.c_str(), port,
         grid, ghostRegionWidth);
 
-    // Get the model from pkd and allocate it if it's missing
-    // we also have the builder forget about the model since it asserts
-    // that no model is set when calling build
-    ParticleModel *model = new ParticleModel;
-    // Clear the old build data
-    next_pkd = new PartiKD;
-    model->radius = radius;
-
     int rank = ospray::mpi::worker.rank;
     int size = ospray::mpi::worker.size;
-    box3f actual_bounds = embree::empty;
     if (rank == 0){
       PRINT(dd->worldBounds);
     }
-    for (int r = 0; r < size; ++r) {
-      MPI_CALL(Barrier(ospray::mpi::worker.comm));
-      if (r == rank) {
-        std::cout << "worker rank " << r << " (global rank "
-          << ospray::mpi::world.rank << ") : " << std::endl;
-        for (int mbID = 0; mbID < dd->numMine(); ++mbID) {
-          std::cout << " rank: " << rank << " #" << mbID << std::endl;
-          const DomainGrid::Block &b = dd->getMine(mbID);
-          // TODO WILL: Here we should build separate pkds for each domain
-          // assigned to us
-          actual_bounds = b.actualDomain;
-          std::cout << "  lo " << b.actualDomain.lower << std::endl;
-          std::cout << "  hi " << b.actualDomain.upper << std::endl;
-          std::cout << "  ghost lo " << b.ghostDomain.lower << std::endl;
-          std::cout << "  ghost hi " << b.ghostDomain.upper << std::endl;
-          std::cout << "  #p " << b.particle.size() / OSP_IS_STRIDE_IN_FLOATS << std::endl;
-          for (size_t i = 0; i < b.particle.size() / OSP_IS_STRIDE_IN_FLOATS; ++i){
-            size_t pid = i * OSP_IS_STRIDE_IN_FLOATS;
-            model->position.push_back(vec3f(b.particle[pid], b.particle[pid + 1],
-                  b.particle[pid + 2]));
-            // TODO WILL: If we want to color by render node rank we should push back 'rank' here
-            if (OSP_IS_STRIDE_IN_FLOATS == 4){
-#if !USE_RENDER_RANK_ATTRIB
-              model->addAttribute(attribute_name, b.particle[pid + 3]);
-#else
-              model->addAttribute(attribute_name, rank);
-#endif
-            }
-          }
-        }
-        std::cout << std::flush;
-        fflush(0);
-        usleep(200);
+    nextDDSpheres.clear();
+    for (size_t i = 0; i < dd->numBlocks; ++i) {
+      const DomainGrid::Block &b = dd->block[i];
+      DDSpheres spheres;
+      spheres.actualDomain = b.actualDomain;
+      spheres.firstOwner = b.firstOwner;
+      spheres.numOwners = b.numOwners;
+      spheres.isMine = b.isMine;
+      if (b.isMine) {
+        buildPKDBlock(b, spheres);
       }
-      MPI_CALL(Barrier(ospray::mpi::worker.comm));
+      nextDDSpheres.push_back(spheres);
     }
-
-    if (model->position.empty()){
-      throw std::runtime_error("#ospray:geometry/InSituSpheres: no 'InSituSpheres' data loaded from sim");
-    }
-    // We've got our positions so now send it to the ospray geometry
-    std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = "
-      << model->position.size() << std::endl;
+    MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
 #if PRINT_FULL_PARTICLE_COUNT
-    uint64_t num_particles = model->position.size();
+    // TODO: Should count across all ddSpheres
+    uint64_t num_particles = 0;
+    for (const auto &b : nextDDSpheres) {
+      num_particles += b.positions.size();
+    }
     uint64_t total_particles = 0;
     MPI_CALL(Allreduce(&num_particles, &total_particles, 1, MPI_UINT64_T, MPI_SUM,
           ospray::mpi::worker.comm));
@@ -268,7 +142,81 @@ namespace ospray {
     }
 #endif
 
-    if (model->position.size() >= (1ULL << 30)) {
+    // TODO: Find the local attrib range over all our blocks, then figure out global range
+    float local_attr_lo = std::numeric_limits<float>::max();
+    float local_attr_hi = std::numeric_limits<float>::lowest();
+#if !USE_RENDER_RANK_ATTRIB
+    for (const auto &b : nextDDSpheres) {
+      for (size_t i = 0; i < b.attributes.size(); ++i) {
+        local_attr_lo = std::min(local_attr_lo, b.attributes[i]);
+        local_attr_hi = std::max(local_attr_hi, b.attributes[i]);
+      }
+    }
+    // We need to figure out the min/max attribute range over ALL the workers
+    // to properly color by attribute with the same transfer function. Otherwise
+    // workers will map different values to the same color
+    float attr_lo = local_attr_lo, attr_hi = local_attr_hi;
+    MPI_CALL(Allreduce(&local_attr_lo, &attr_lo, 1, MPI_FLOAT, MPI_MIN, ospray::mpi::worker.comm));
+    MPI_CALL(Allreduce(&local_attr_hi, &attr_hi, 1, MPI_FLOAT, MPI_MAX, ospray::mpi::worker.comm));
+#else
+    float attr_lo = 0;
+    float attr_hi = static_cast<float>(ospray::mpi::worker.size);
+#endif
+
+    // Give each PKD the global attribute range and commit them
+    for (auto &ddspheres : nextDDSpheres) {
+      ddspheres.pkd->findParam("attribute_low", 1)->set(attr_lo);
+      ddspheres.pkd->findParam("attribute_high", 1)->set(attr_hi);
+    }
+
+    // Wait for all workers to finish building their pkds
+    MPI_CALL(Barrier(ospray::mpi::worker.comm));
+
+    // Tell the render process the bounds of the geometry in the world
+    // and that we're dirty and should be updated
+    if (ospray::mpi::world.rank == 1){
+      MPI_CALL(Send(&dd->worldBounds, 6, MPI_FLOAT, 0, 1, ospray::mpi::world.comm));
+    }
+    delete dd;
+  }
+
+  void InSituSpheres::buildPKDBlock(const DomainGrid::Block &b, DDSpheres &ddspheres) const {
+    ParticleModel model;
+    PartiKD partikd;
+    model.radius = radius;
+
+    ddspheres.actualDomain = b.actualDomain;
+    ddspheres.firstOwner = b.firstOwner;
+    ddspheres.numOwners = b.numOwners;
+    PRINT(ddspheres.actualDomain);
+    PRINT(ddspheres.firstOwner);
+    PRINT(ddspheres.numOwners);
+    std::cout << "  lo " << b.actualDomain.lower << std::endl;
+    std::cout << "  hi " << b.actualDomain.upper << std::endl;
+    std::cout << "  ghost lo " << b.ghostDomain.lower << std::endl;
+    std::cout << "  ghost hi " << b.ghostDomain.upper << std::endl;
+    std::cout << "  #p " << b.particle.size() / OSP_IS_STRIDE_IN_FLOATS << std::endl;
+    for (size_t i = 0; i < b.particle.size() / OSP_IS_STRIDE_IN_FLOATS; ++i){
+      size_t pid = i * OSP_IS_STRIDE_IN_FLOATS;
+      model.position.push_back(vec3f(b.particle[pid], b.particle[pid + 1],
+            b.particle[pid + 2]));
+      if (OSP_IS_STRIDE_IN_FLOATS == 4){
+#if !USE_RENDER_RANK_ATTRIB
+        model.addAttribute(attribute_name, b.particle[pid + 3]);
+#else
+        model.addAttribute(attribute_name, rank);
+#endif
+      }
+    }
+
+    if (model.position.empty()){
+      throw std::runtime_error("#ospray:geometry/InSituSpheres: no 'InSituSpheres' data loaded from sim");
+    }
+    // We've got our positions so now send it to the ospray geometry
+    std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = "
+      << model.position.size() << std::endl;
+
+    if (model.position.size() >= (1ULL << 30)) {
       throw std::runtime_error("#ospray::InSituSpheres: too many InSituSpheres in this "
           "sphere geometry. Consider splitting this "
           "geometry in multiple geometries with fewer "
@@ -279,23 +227,21 @@ namespace ospray {
     }
     // Build the pkd tree on the particles
     std::cout << "InSituSpheres: building pkd\n";
-    next_pkd->build(model);
+    partikd.build(&model);
 
-    // Set the new pkd as the one to be displayed
-    next_actual_bounds = actual_bounds;
-    // Wait for all workers to finish building the pkd
-    MPI_CALL(Barrier(ospray::mpi::worker.comm));
-    world_bounds = dd->worldBounds;
+    ddspheres.positions = std::move(model.position);
+    ddspheres.attributes = std::move(model.getAttribute(attribute_name)->value);
+    // TODO: Will these leak? Or be prematurely cleaned up?
+    Ref<Data> posData = new Data(ddspheres.positions.size(), OSP_FLOAT, ddspheres.positions.data(),
+        OSP_DATA_SHARED_BUFFER);
+    Ref<Data> attribData = new Data(ddspheres.attributes.size(), OSP_FLOAT, ddspheres.attributes.data(),
+        OSP_DATA_SHARED_BUFFER);
+    ddspheres.pkd = new PartiKDGeometry;
 
-    // Tell the render process the bounds of the geometry in the world
-    // and that we're dirty and should be updated
-    if (ospray::mpi::world.rank == 1){
-      MPI_CALL(Send(&dd->worldBounds, 6, MPI_FLOAT, 0, 1, ospray::mpi::world.comm));
-    }
-    // TODO: Instead of deleting the domaingrid we need to keep it but just release
-    // all the particle data so we can use it to figure out tiles that we expect/need to
-    // render based on the data distribution
-    delete dd;
+    ddspheres.pkd->findParam("position", 1)->set(posData);
+    ddspheres.pkd->findParam("attribute", 1)->set(attribData);
+    ddspheres.pkd->findParam("transferFunction", 1)->set(transferFunction);
+    ddspheres.pkd->findParam("radius", 1)->set(model.radius);
   }
 
   OSP_REGISTER_GEOMETRY(InSituSpheres,InSituSpheres);

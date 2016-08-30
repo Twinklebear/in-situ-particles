@@ -125,9 +125,16 @@ namespace ospray {
     attribute = (float*)(attributeData?attributeData->data:NULL);
     if (attribute) {
       cout << "#osp:pkd: found attribute, computing range and min/max bit array" << endl;
-      attr_lo = attr_hi = attribute[0];
-      for (size_t i=0;i<numParticles;i++)
-        { attr_lo = std::min(attr_lo,attribute[i]); attr_hi = std::max(attr_hi,attribute[i]); }
+      if (hasParam("attribute_low") && hasParam("attribute_high")) {
+        attr_lo = getParam1f("attribute_low", 0.f);
+        attr_hi = getParam1f("attribute_high", 0.f);
+      } else {
+        attr_lo = attr_hi = attribute[0];
+        for (size_t i=0;i<numParticles;i++){
+          attr_lo = std::min(attr_lo,attribute[i]);
+          attr_hi = std::max(attr_hi,attribute[i]);
+        }
+      }
 
       binBitsArray = new uint32[numInnerNodes];
       size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);

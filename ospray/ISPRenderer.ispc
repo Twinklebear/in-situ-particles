@@ -35,9 +35,6 @@ struct ISPRenderer {
 struct DDSpheresBlock {
   // The actual grid domain assigned for this block
   box3f actualDomain;
-  // The full domain spanned by the particles in the block, accounting
-  // for ghost regions + particle radii
-  box3f sphereBounds;
   int firstOwner;
   int numOwners;
   int isMine;
@@ -209,6 +206,8 @@ inline uniform bool shouldRenderBlock(DDSpheresBlock *uniform block,
                                       uniform int32 tileID,
                                       uniform int32 myRank)
 {
+  print("isMine %, myRank %, firstOwner %, tileID %, numOwners %\n",
+      block->isMine, myRank, block->firstOwner, tileID, block->numOwners);
   return block->isMine && (myRank - block->firstOwner) == (tileID % block->numOwners);
 }
 
@@ -239,9 +238,7 @@ void ISPRenderer_renderSample(uniform ISPRenderer *uniform self,
       // ray does not intersect this block...
     } else {
       // ray hits this block, tile will need it rendered
-      if (!tileNeedsBlock[blockID]) {
-        tileNeedsBlock[blockID] = true;
-      }
+      tileNeedsBlock[blockID] = true;
       blockRegion.lower = min(blockRegion.lower, t0);
       blockRegion.upper = max(blockRegion.upper, t1);
 

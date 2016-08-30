@@ -19,18 +19,20 @@ namespace ospray {
       box3f ghostDomain;
       int firstOwner;
       int numOwners;
+      bool isMine;
     };
 
     DomainGrid(const vec3i &dims,
                const box3f &domain,
                const float ghosting);
-	~DomainGrid();
+    ~DomainGrid();
     size_t numMine() const { return myBlock.size(); }
     Block &getMine(int myBlockID) { return block[myBlock[myBlockID]]; }
     const Block &getMine(int myBlockID) const { return block[myBlock[myBlockID]]; }
 
     box3f worldBounds;
     Block *block;
+    size_t numBlocks;
     std::vector<int> myBlock;
     vec3i dims;
   };
