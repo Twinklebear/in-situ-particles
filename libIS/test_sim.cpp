@@ -3,23 +3,25 @@
 #include <vector>
 
 struct vec4f {
-  float x, y, z, w;
+  float x, y, z, attrib;
 };
 
 int rank, size;
 std::vector<vec4f> particle;
 const float speed = .01f;
+const int NUM_PARTICLES = 10000;
 
 void doTimeStep()
 {
   static int timeStep = 0;
 
   if (timeStep == 0) {
-    for (int i=0;i<10000;i++) {
+    for (int i=0;i<NUM_PARTICLES;i++) {
       vec4f v;
       v.x = (rank+drand48())/size;
       v.y = drand48();
       v.z = drand48();
+      v.attrib = drand48();
       particle.push_back(v);
     }
   }
