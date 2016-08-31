@@ -18,6 +18,7 @@
 
 #include <atomic>
 #include <thread>
+#include <memory>
 #include "ospray/geometry/Geometry.h"
 #include "ospray/transferFunction/TransferFunction.h"
 #include "libIS/is_render.h"
@@ -45,8 +46,8 @@ namespace ospray {
       int numOwners;
       int isMine;
       // The position and attribute data shared with the pkd geometry
-      std::vector<vec3f> positions;
-      std::vector<float> attributes;
+      std::shared_ptr<std::vector<vec3f>> positions;
+      std::shared_ptr<std::vector<float>> attributes;
 
       Ref<PartiKDGeometry> pkd;
       void *ispc_pkd;

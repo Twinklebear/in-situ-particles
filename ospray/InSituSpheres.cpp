@@ -44,7 +44,9 @@ namespace ospray {
     box3f b = empty;
     if (!ddSpheres.empty()){
       for (const auto &s : ddSpheres) {
-        b.extend(s.pkd->getBounds());
+        if (s.isMine) {
+          b.extend(s.pkd->getBounds());
+        }
       }
     }
     PING;
@@ -77,14 +79,14 @@ namespace ospray {
     ddSpheres = std::move(nextDDSpheres);
     TransferFunction *tfn = (TransferFunction*)getParamObject("transferFunction", NULL);
     for (auto &spheres : ddSpheres) {
-      std::cout << "committing.." << std::endl;
-      spheres.pkd->setParam("transferFunction", tfn);
-      spheres.pkd->finalize(model);
-      spheres.pkd->commit();
-      spheres.ispc_pkd = spheres.pkd->getIE();
+      if (spheres.isMine) {
+        std::cout << "committing.." << std::endl;
+        spheres.pkd->setParam("transferFunction", tfn);
+        spheres.pkd->finalize(model);
+        spheres.pkd->commit();
+        spheres.ispc_pkd = spheres.pkd->getIE();
+      }
     }
-
-    PING;
 
     // Wait for all workers to finish committing their pkds
     MPI_CALL(Barrier(ospray::mpi::worker.comm));
@@ -125,18 +127,19 @@ namespace ospray {
       spheres.firstOwner = b.firstOwner;
       spheres.numOwners = b.numOwners;
       spheres.isMine = b.isMine;
+      nextDDSpheres.push_back(spheres);
       if (b.isMine) {
-        buildPKDBlock(b, spheres);
+        buildPKDBlock(b, nextDDSpheres.back());
       }
-      nextDDSpheres.push_back(std::move(spheres));
     }
-    MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
 #if PRINT_FULL_PARTICLE_COUNT
     // TODO: Should count across all ddSpheres
     uint64_t num_particles = 0;
     for (const auto &b : nextDDSpheres) {
-      num_particles += b.positions.size();
+      if (b.firstOwner == rank) {
+      num_particles += b.positions->size();
+      }
     }
     uint64_t total_particles = 0;
     MPI_CALL(Allreduce(&num_particles, &total_particles, 1, MPI_UINT64_T, MPI_SUM,
@@ -152,9 +155,11 @@ namespace ospray {
     float local_attr_hi = std::numeric_limits<float>::lowest();
 #if !USE_RENDER_RANK_ATTRIB
     for (const auto &b : nextDDSpheres) {
-      for (size_t i = 0; i < b.attributes.size(); ++i) {
-        local_attr_lo = std::min(local_attr_lo, b.attributes[i]);
-        local_attr_hi = std::max(local_attr_hi, b.attributes[i]);
+      if (b.isMine) {
+        for (size_t i = 0; i < b.attributes->size(); ++i) {
+          local_attr_lo = std::min(local_attr_lo, (*b.attributes)[i]);
+          local_attr_hi = std::max(local_attr_hi, (*b.attributes)[i]);
+        }
       }
     }
     // We need to figure out the min/max attribute range over ALL the workers
@@ -170,12 +175,11 @@ namespace ospray {
 
     // Give each PKD the global attribute range and commit them
     for (auto &ddspheres : nextDDSpheres) {
-      ddspheres.pkd->findParam("attribute_low", 1)->set(attr_lo);
-      ddspheres.pkd->findParam("attribute_high", 1)->set(attr_hi);
+      if (ddspheres.isMine) {
+        ddspheres.pkd->findParam("attribute_low", 1)->set(attr_lo);
+        ddspheres.pkd->findParam("attribute_high", 1)->set(attr_hi);
+      }
     }
-
-    // Wait for all workers to finish building their pkds
-    MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
     // Tell the render process the bounds of the geometry in the world
     // and that we're dirty and should be updated
@@ -190,9 +194,9 @@ namespace ospray {
     PartiKD partikd;
     model.radius = radius;
 
-    ddspheres.actualDomain = b.actualDomain;
-    ddspheres.firstOwner = b.firstOwner;
-    ddspheres.numOwners = b.numOwners;
+#if USE_RENDER_RANK_ATTRIB
+    const int rank = ospray::mpi::worker.rank;
+#endif
     PRINT(ddspheres.actualDomain);
     PRINT(ddspheres.firstOwner);
     PRINT(ddspheres.numOwners);
@@ -234,10 +238,12 @@ namespace ospray {
     std::cout << "InSituSpheres: building pkd\n";
     partikd.build(&model);
 
-    ddspheres.positions = std::move(model.position);
-    ddspheres.attributes = std::move(model.getAttribute(attribute_name)->value);
+    // TODO We're leaving something dangling here or somewhere and messing up all but the last
+    // block of PKD data.
+    ddspheres.positions = std::make_shared<std::vector<vec3f>>(std::move(model.position));
+    ddspheres.attributes = std::make_shared<std::vector<float>>(std::move(model.getAttribute(attribute_name)->value));
     // TODO: The positions data is being lost??
-    Data *posData = new Data(ddspheres.positions.size(), OSP_FLOAT3, ddspheres.positions.data(),
+    Data *posData = new Data(ddspheres.positions->size(), OSP_FLOAT3, ddspheres.positions->data(),
         OSP_DATA_SHARED_BUFFER);
     // TODO: Will need to manually release these. Do we actually need to
     // manually increment the refcount?
@@ -246,8 +252,8 @@ namespace ospray {
 
     ddspheres.pkd->findParam("position", 1)->set(posData);
     ddspheres.pkd->findParam("radius", 1)->set(model.radius);
-    if (!ddspheres.attributes.empty()) {
-      Data *attribData = new Data(ddspheres.attributes.size(), OSP_FLOAT, ddspheres.attributes.data(),
+    if (!ddspheres.attributes->empty()) {
+      Data *attribData = new Data(ddspheres.attributes->size(), OSP_FLOAT, ddspheres.attributes->data(),
           OSP_DATA_SHARED_BUFFER);
       //attribData->refInc();
       ddspheres.pkd->findParam("attribute", 1)->set(attribData);

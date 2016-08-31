@@ -20,8 +20,13 @@ namespace ospray {
       ispcBlock.numOwners = b.numOwners;
       ispcBlock.isMine = b.isMine;
       ispcBlock.blockID = nextBlockID++;
-      ispcBlock.cpp_pkd = static_cast<void*>(b.pkd.ptr);
-      ispcBlock.ispc_pkd = b.pkd->getIE();
+      if (b.isMine) {
+        ispcBlock.cpp_pkd = static_cast<void*>(b.pkd.ptr);
+        ispcBlock.ispc_pkd = b.pkd->getIE();
+      } else {
+        ispcBlock.cpp_pkd = NULL;
+        ispcBlock.ispc_pkd = NULL;
+      }
       pkdBlocks.push_back(ispcBlock);
     }
   }
@@ -81,8 +86,9 @@ namespace ospray {
 
       size_t totalBlocksInTile = 0;
       for (size_t blockID = 0; blockID < numBlocks; blockID++) {
-        if (blockWasVisible[blockID])
+        if (blockWasVisible[blockID]) {
           totalBlocksInTile++;
+        }
       }
 
       /* I expect one additional tile for background tile.
