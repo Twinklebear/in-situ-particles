@@ -170,26 +170,19 @@ inline void shade_ao(uniform ISPRenderer *uniform self,
     ao_ray.t0 = self->super.epsilon;
     ao_ray.t  = self->aoRayLength - self->super.epsilon;
     // TODO WILL: Reducing this from 0.05 to 0.015 helps reduce the shadowing on the Uintah model
-    /*
     if (dot(ao_ray.dir, N) < 0.05f) {
       ++hits;
-    }
-    */
-    if (passInfo) {
+    } else if (passInfo) {
       PartiKDGeometry_occluded_packet(passInfo->block->ispc_pkd, ao_ray, passInfo->block->blockID);
       if (ao_ray.geomID >= 0) {
         ++hits;
       }
-    }
-    /*
-    else if (isOccluded(self->super.model,ao_ray)) {
+    } else if (isOccluded(self->super.model,ao_ray)) {
       ++hits;
     }
-    */
   }
 
   const float diffuse = absf(dot(N, ray.dir));
-  //superColor = (N + make_vec3f(1.f)) / 2.f;
   color = superColor * make_vec3f(diffuse) * (1.0f - (float)hits/sampleCnt);
   alpha = 1.f;
   return;
