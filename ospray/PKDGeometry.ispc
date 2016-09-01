@@ -23,7 +23,6 @@
 #include "transferFunction/LinearTransferFunction.ih"
 // this module
 #include "PKDGeometry.ih"
-#include "PKDConfig.h"
 // embree
 #include "embree2/rtcore.isph"
 #include "embree2/rtcore_scene.isph"
