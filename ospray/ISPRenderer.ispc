@@ -162,7 +162,6 @@ inline void shade_ao(uniform ISPRenderer *uniform self,
   const vec3f N = dg.Ns;
   getBinormals(biNormU,biNormV,N);
 
-#if 0
   for (uniform int i = 0; i < sampleCnt; i++) {
     const vec3f ao_dir = getRandomDir(rng, biNormU, biNormV, N, rot_x,
                                       rot_y,self->super.epsilon);
@@ -183,7 +182,7 @@ inline void shade_ao(uniform ISPRenderer *uniform self,
       ++hits;
     }
   }
-#endif
+
   const float diffuse = absf(dot(N, ray.dir));
   color = superColor * make_vec3f(diffuse) * (1.0f - (float)hits/sampleCnt);
   alpha = 1.f;

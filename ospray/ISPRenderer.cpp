@@ -119,11 +119,11 @@ namespace ospray {
     return renderer;                                                    \
   }
 
-  OSP_REGISTER_AO_RENDERER(isp,   4 );
-  OSP_REGISTER_AO_RENDERER(isp1,  1 );
-  OSP_REGISTER_AO_RENDERER(isp2,  2 );
-  OSP_REGISTER_AO_RENDERER(isp4,  4 );
-  OSP_REGISTER_AO_RENDERER(isp8,  8 );
+  OSP_REGISTER_AO_RENDERER(isp, 4);
+  OSP_REGISTER_AO_RENDERER(isp1, 1);
+  OSP_REGISTER_AO_RENDERER(isp2, 2);
+  OSP_REGISTER_AO_RENDERER(isp4, 4);
+  OSP_REGISTER_AO_RENDERER(isp8, 8);
   OSP_REGISTER_AO_RENDERER(isp16, 16);
 
 } // ::ospray
