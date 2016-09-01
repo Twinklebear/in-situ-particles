@@ -15,7 +15,6 @@
 // ======================================================================== //
 
 #include "PKDGeometry.h"
-#include "PKDConfig.h"
 // ospray
 #include "ospray/common/Model.h"
 // ispc exports

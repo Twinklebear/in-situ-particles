@@ -15,7 +15,6 @@
 // ======================================================================== //
 
 #include "ParticleModel.h"
-#include "PKDConfig.h"
 
 namespace ospray {
 

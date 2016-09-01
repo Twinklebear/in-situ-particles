@@ -25,7 +25,6 @@
 #include <map>
 #include <vector>
 
-#include "PKDConfig.h"
 #include "../ospray/MinMaxBVH2.h"
 
 namespace ospray {

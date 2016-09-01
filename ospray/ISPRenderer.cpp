@@ -60,7 +60,7 @@ namespace ospray {
     ispc::ISPRenderer_set(getIE(), numSamples, rayLength);
   }
 
-  void ISPRenderer::renderFrame(FrameBuffer *fb, const uint32 fbChannelFlags) {
+  float ISPRenderer::renderFrame(FrameBuffer *fb, const uint32 fbChannelFlags) {
     // check if we're even in mpi parallel mode (can't do
     // data-parallel otherwise)
     if (!ospray::core::isMpiParallel()){
@@ -93,11 +93,11 @@ namespace ospray {
           "this is a data-parallel scene, but we're "
           "not using the distributed frame buffer!?");
     }
-    dfb->setFrameMode(DistributedFrameBuffer::ALPHA_BLENDING);
+    dfb->setFrameMode(DistributedFrameBuffer::ALPHA_BLEND);
 
     Renderer::beginFrame(fb);
 
-    dfb->startNewFrame();
+    dfb->startNewFrame(0.f);
 
     // create the render task
     ISPDPRenderTask renderTask(this, fb, divRoundUp(dfb->size.x,TILE_SIZE),
@@ -108,9 +108,7 @@ namespace ospray {
 
     dfb->waitUntilFinished();
     Renderer::endFrame(NULL, fbChannelFlags);
-
-    // TODO: This starts returning a float in ospray 1.0
-    //return 0.f;
+    return fb->endFrame(0.f);
   }
 
 #define OSP_REGISTER_AO_RENDERER(external_name, nSamples)               \

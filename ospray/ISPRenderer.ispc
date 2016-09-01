@@ -109,7 +109,8 @@ inline vec3f getRandomDir(varying RandomTEA* uniform rng,
 inline void shade_ao(uniform ISPRenderer *uniform self,
                      varying vec3f &color,
                      varying float &alpha,
-                     int sampleCnt,
+                     const uniform int sampleCnt,
+                     const uniform int accumID,
                      const Ray &ray,
                      const int32 pixel_x,
                      const int32 pixel_y,
@@ -154,7 +155,7 @@ inline void shade_ao(uniform ISPRenderer *uniform self,
   uniform FrameBuffer *uniform fb = self->super.fb;
   RandomTEA rng_state;
   varying RandomTEA* const uniform rng = &rng_state;
-  RandomTEA__Constructor(rng, (fb->size.x * pixel_y) + pixel_x, fb->accumID);
+  RandomTEA__Constructor(rng, (fb->size.x * pixel_y) + pixel_x, accumID);
 
   int hits = 0;
   vec3f biNormU,biNormV;
@@ -205,15 +206,15 @@ void ISPRenderer_renderSample(uniform Renderer *uniform _self,
     traceRay(self->super.model, sample.ray);
   }
   sample.z = sample.ray.t;
-  uniform int samplesPerFrame = self->samplesPerFrame;
-  uniform int framesPer16 = 16 / samplesPerFrame;
-  int accumID = sample.sampleID.z / framesPer16;
-  float rot_x = 1.f - precomputedHalton3(accumID);
-  float rot_y = 1.f - precomputedHalton5(accumID);
+  const uniform int accumID = reduce_max(sample.sampleID.z) * self->samplesPerFrame;
+  const uniform float rot_x = 1.f - precomputedHalton3(accumID);
+  const uniform float rot_y = 1.f - precomputedHalton5(accumID);
+
   shade_ao(self,
       sample.rgb,
       sample.alpha,
-      samplesPerFrame,
+      self->samplesPerFrame,
+      accumID,
       sample.ray,
       sample.sampleID.x,
       sample.sampleID.y,
@@ -268,8 +269,7 @@ void ISPRenderer_renderSample(uniform ISPRenderer *uniform self,
         uniform PassInfo passInfo;
         // set integration pass up for region from (at most) ray origin to
         // start of blocks
-        //passInfo.region = make_box1f(t0,t1);
-        passInfo.region = make_region1f(t0,t1);
+        passInfo.region = make_box1f(t0,t1);
         // do not use any block in this pass
         passInfo.block = &block[blockID];
         ++numBlocksMine;
@@ -324,7 +324,7 @@ export void ISPRendererDataDistrib_renderTile(void *uniform _self,
 
   const uniform int begin = taskIndex * RENDERTILE_PIXELS_PER_JOB;
   const uniform int end   = begin     + RENDERTILE_PIXELS_PER_JOB;
-  const uniform int startSampleID = max(fb->accumID,0);
+  const uniform int startSampleID = max(bgTile.accumID,0);
 
   for (uniform uint32 i=begin;i<end;i+=programCount) {
     const uint32 index = i + programIndex;

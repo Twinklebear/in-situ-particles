@@ -40,8 +40,7 @@ namespace ospray {
     std::string toString() const override;
     void commit() override;
 
-    // TODO: This switches to return a float
-    void renderFrame(FrameBuffer *fb, const uint32 fbChannelFlags) override;
+    float renderFrame(FrameBuffer *fb, const uint32 fbChannelFlags) override;
 
   private:
     std::vector<void*> lightArray; // the 'IE's of the XXXLights

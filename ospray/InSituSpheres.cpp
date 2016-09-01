@@ -25,6 +25,7 @@
 #include "ospray/common/Data.h"
 #include "ospray/common/Model.h"
 #include "ospray/mpi/MPICommon.h"
+#include "ospray/include/ospray/ospray.h"
 
 #include "../testing_defines.h"
 

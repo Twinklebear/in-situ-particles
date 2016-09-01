@@ -147,7 +147,7 @@ namespace is_sim {
   box3f computeBounds(const float *particle, size_t numParticles)
   {
     // TODO: parallelize
-    box3f bounds = embree::empty;
+    box3f bounds = ospcommon::empty;
     for (int i = 0; i < numParticles; ++i){
 		size_t pid = i * OSP_IS_STRIDE_IN_FLOATS;
 		bounds.extend(vec3f(particle[pid], particle[pid + 1], particle[pid + 2]));

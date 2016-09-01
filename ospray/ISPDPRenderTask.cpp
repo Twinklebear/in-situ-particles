@@ -1,5 +1,5 @@
 #include "ospray/common/Core.h"
-#include "ospray/common/parallel_for.h"
+#include "common/tasking/parallel_for.h"
 
 #include "ISPDPRenderTask.h"
 // ispc exports
@@ -37,25 +37,12 @@ namespace ospray {
     const size_t tile_y = taskID / numTiles_x;
     const size_t tile_x = taskID - tile_y*numTiles_x;
     const vec2i tileId(tile_x, tile_y);
-    // TODO: Was not added til more recently
-    //const int32 accumID = fb->accumID(tileId);
-    const int32 accumID = 1;
-    // TODO: Was not added til more recently
-    //Tile bgTile(tileId, fb->size, accumID);
-    Tile bgTile;
-    bgTile.region.lower.x = tile_x * TILE_SIZE;
-    bgTile.region.lower.y = tile_y * TILE_SIZE;
-    bgTile.region.upper.x = std::min(bgTile.region.lower.x+TILE_SIZE,fb->size.x);
-    bgTile.region.upper.y = std::min(bgTile.region.lower.y+TILE_SIZE,fb->size.y);
-    bgTile.fbSize = fb->size;
-    bgTile.rcp_fbSize = rcp(vec2f(bgTile.fbSize));
-    bgTile.generation = 0;
-    bgTile.children = 0;
+    const int32 accumID = fb->accumID(tileId);
+    Tile bgTile(tileId, fb->size, accumID);
 
     const size_t numBlocks = isSpheres->ddSpheres.size();
     ISPCacheForTiles blockTileCache(numBlocks);
-    //bool *blockWasVisible = STACK_BUFFER(bool, numBlocks);
-    bool *blockWasVisible = (bool*)alloca(numBlocks*sizeof(bool));
+    bool *blockWasVisible = STACK_BUFFER(bool, numBlocks);
 
     for (size_t i = 0; i < numBlocks; i++) {
       blockWasVisible[i] = false;
