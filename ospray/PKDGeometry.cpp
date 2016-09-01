@@ -157,7 +157,8 @@ namespace ospray {
         binBitsArray[pID] = lBits|rBits;
         // cout << " bits " << pID << " : " << (int*)lBits << " " << (int*)rBits << endl;
       }
-      cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0] << endl;
+      cout << "#osp:pkd: found attribute [" << attr_lo << ".."
+        << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0] << endl;
     }
 
     // -------------------------------------------------------
@@ -178,7 +179,3 @@ namespace ospray {
 
 } // ::ospray
 
-extern "C" void ospray_init_module_pkd() 
-{
-  std::cout << "#osp:pkd: loading 'pkd' module" << std::endl;
-}

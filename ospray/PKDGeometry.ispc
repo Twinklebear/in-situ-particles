@@ -54,7 +54,6 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
       uniform float *uniform ptr = attribArray + pID;
       attrib_org = ptr[0];
     }
-      
     const float attrib
       = (attrib_org - attrib_lo)
       * rcp(attrib_hi - attrib_lo + 1e-10f);
@@ -68,6 +67,7 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                                                  attrib);
     dg.color = make_vec4f(color.x,color.y,color.z,alpha);
   }
+
 // some useful combinations; enums unfortunately don't work :-(
 #define  DG_NG_FACEFORWARD (DG_NG | DG_FACEFORWARD)
 #define  DG_NS_FACEFORWARD (DG_NS | DG_FACEFORWARD)

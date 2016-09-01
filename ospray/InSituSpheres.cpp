@@ -36,7 +36,6 @@ namespace ospray {
 
   InSituSpheres::~InSituSpheres()
   {
-    PING;
     ddSpheres.clear();
   }
 
@@ -50,12 +49,20 @@ namespace ospray {
         }
       }
     }
-    PING;
     return b;
   }
 
-  void InSituSpheres::finalize(Model *model)
-  {
+  void InSituSpheres::finalize(Model *model) {
+    for (auto &spheres : ddSpheres) {
+      if (spheres.isMine) {
+        spheres.pkd->finalize(model);
+        spheres.ispc_pkd = spheres.pkd->getIE();
+      }
+    }
+  }
+
+  void InSituSpheres::commit() {
+    PING;
     radius = getParam1f("radius", 0.01f);
     server = getParamString("server_name", NULL);
     poll_delay = getParam1f("poll_rate", 10.0);
@@ -74,18 +81,15 @@ namespace ospray {
     if (nextDDSpheres.empty()){
       std::cout << "ospray::InSituSpheres: Making blocking initial query\n";
       getTimeStep();
-      // We're going to be re-committed immediately so just bail out for now
-      return;
     }
+
     ddSpheres = std::move(nextDDSpheres);
     TransferFunction *tfn = (TransferFunction*)getParamObject("transferFunction", NULL);
     for (auto &spheres : ddSpheres) {
       if (spheres.isMine) {
         std::cout << "committing.." << std::endl;
         spheres.pkd->setParam("transferFunction", tfn);
-        spheres.pkd->finalize(model);
         spheres.pkd->commit();
-        spheres.ispc_pkd = spheres.pkd->getIE();
       }
     }
 
@@ -99,6 +103,7 @@ namespace ospray {
     sim_poller.detach();
 #endif
   }
+
   void InSituSpheres::pollSimulation(){
     std::cout << "ospray::InSituSpheres: Polling for new timestep after " << poll_delay << "s\n";
     const auto millis = std::chrono::milliseconds(
@@ -106,6 +111,7 @@ namespace ospray {
     std::this_thread::sleep_for(millis);
     getTimeStep();
   }
+
   void InSituSpheres::getTimeStep(){
 #ifdef AO_OCCLUSION_DISTANCE
     const float ghostRegionWidth = std::max(radius, AO_OCCLUSION_DISTANCE);
@@ -139,7 +145,7 @@ namespace ospray {
     uint64_t num_particles = 0;
     for (const auto &b : nextDDSpheres) {
       if (b.firstOwner == rank) {
-      num_particles += b.positions->size();
+        num_particles += b.positions->size();
       }
     }
     uint64_t total_particles = 0;
@@ -239,16 +245,11 @@ namespace ospray {
     std::cout << "InSituSpheres: building pkd\n";
     partikd.build(&model);
 
-    // TODO We're leaving something dangling here or somewhere and messing up all but the last
-    // block of PKD data.
     ddspheres.positions = std::make_shared<std::vector<vec3f>>(std::move(model.position));
     ddspheres.attributes = std::make_shared<std::vector<float>>(std::move(model.getAttribute(attribute_name)->value));
     // TODO: The positions data is being lost??
     Data *posData = new Data(ddspheres.positions->size(), OSP_FLOAT3, ddspheres.positions->data(),
         OSP_DATA_SHARED_BUFFER);
-    // TODO: Will need to manually release these. Do we actually need to
-    // manually increment the refcount?
-    //posData->refInc();
     ddspheres.pkd = new PartiKDGeometry;
 
     ddspheres.pkd->findParam("position", 1)->set(posData);
@@ -256,7 +257,6 @@ namespace ospray {
     if (!ddspheres.attributes->empty()) {
       Data *attribData = new Data(ddspheres.attributes->size(), OSP_FLOAT, ddspheres.attributes->data(),
           OSP_DATA_SHARED_BUFFER);
-      //attribData->refInc();
       ddspheres.pkd->findParam("attribute", 1)->set(attribData);
     } else {
       std::cout << "No attributes on particles" << std::endl;

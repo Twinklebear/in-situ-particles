@@ -28,6 +28,7 @@ if (OSPRAY_MODULE_PARTIKD)
   # Is it b/c it's done in the ospray dir and not for the entire project?
   # Should maybe be done project wide so the modules don't need to re-find it
   include_directories(${MPI_CXX_INCLUDE_PATH})
+  include_directories(${PROJECT_SOURCE_DIR}/apps/common/script/)
 
   ospray_create_library(ospray_module_pkd
     ospray/PKDGeometry.cpp
@@ -43,6 +44,7 @@ if (OSPRAY_MODULE_PARTIKD)
     ospray/ISPRenderer.cpp
     ospray/ISPRenderer.ispc
     ospray/ISPDPRenderTask.cpp
+    ospray/PKDModule.cpp
     # Need PKD builders for InSituSpheres
     apps/PartiKD.cpp
     apps/ParticleModel.cpp

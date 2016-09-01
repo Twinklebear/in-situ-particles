@@ -57,7 +57,9 @@ namespace ospray {
     virtual std::string toString() const { return "ospray::InSituSpheres"; }
     /*! \brief integrates this geometry's primitives into the respective
       model's acceleration structure */
-    virtual void finalize(Model *model);
+    virtual void finalize(Model *model) override;
+    // Commit will execute the actual query
+    virtual void commit() override;
     box3f getBounds() const;
 
     //! radius for the spheres
