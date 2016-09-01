@@ -27,9 +27,6 @@
 #include "embree2/rtcore.isph"
 #include "embree2/rtcore_scene.isph"
 #include "embree2/rtcore_geometry_user.isph"
-#if PARTIKD_LIDAR_ENABLED
-#include "ColorMask.h"
-#endif
 
 static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                           uniform Model *uniform model,

@@ -126,7 +126,6 @@ namespace ospray {
     attribute = (float*)(attributeData?attributeData->data:NULL);
 
     // Attribute culling on the lidar type-punned RGB data doesn't make sense, so don't do it
-#if !PARTIKD_LIDAR_ENABLED
     if (attribute) {
       cout << "#osp:pkd: found attribute, computing range and min/max bit array" << endl;
       if (hasParam("attribute_low") && hasParam("attribute_high")) {
@@ -160,8 +159,6 @@ namespace ospray {
       }
       cout << "#osp:pkd: found attribute [" << attr_lo << ".." << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0] << endl;
     }
-#endif
-
 
     // -------------------------------------------------------
     // actually create the ISPC-side geometry now

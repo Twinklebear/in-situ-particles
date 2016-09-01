@@ -105,7 +105,6 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
 
   // if (dbg) print("ISEC2\n");
   // do attribute alpha test, if both attribute and transfer fct are set
-#if !PARTIKD_LIDAR_ENABLED
   if ((self->attribute!=NULL) & (self->transferFunction!=NULL)) {
     // -------------------------------------------------------
     // do attribute test
@@ -124,7 +123,6 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
     if (alpha <= .5f)
       return false;
   }
-#endif
 
   // if (dbg) print("ISEC3\n");
   // found a hit - store it
