@@ -62,7 +62,6 @@ namespace ospray {
   }
 
   void InSituSpheres::commit() {
-    PING;
     radius = getParam1f("radius", 0.01f);
     server = getParamString("server_name", NULL);
     poll_delay = getParam1f("poll_rate", 10.0);
