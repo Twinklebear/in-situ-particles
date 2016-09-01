@@ -14,31 +14,17 @@
 ## limitations under the License.                                           ##
 ## ======================================================================== ##
 
-CONFIGURE_OSPRAY()
-
 # ------------------------------------------------------------
-ADD_LIBRARY(ospray_module_pkd_builder
+ospray_create_library(module_pkd_builder
   PartiKD.cpp
   ParticleModel.cpp
-  #importers
+  # importers
   ImportUIntah.cpp
   ImportCOSMOS.cpp
   ImportXYZ.cpp
   ImportCosmicWeb.cpp
 )
-IF (NOT THIS_IS_MIC)
-  ADD_EXECUTABLE(ospPartiKD PartiKDApp.cpp)
-  TARGET_LINK_LIBRARIES(ospPartiKD ${LIBS} ospray_module_pkd_builder
-    ospray_xml${OSPRAY_LIB_SUFFIX})
-ENDIF()
-# ------------------------------------------------------------
+if (NOT THIS_IS_MIC)
+  ospray_create_application(PartiKD PartiKDApp.cpp LINK module_pkd_builder xml)
+endif()
 
-# ------------------------------------------------------------
-# for scene graph includes
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/apps/qtViewer)
-ADD_EXECUTABLE(ospPkd2Raw 
-  pkd2volume.cpp
-  )
-TARGET_LINK_LIBRARIES(ospPkd2Raw ospray_sg_pkd${OSPRAY_LIB_SUFFIX}  
-  )
-# ------------------------------------------------------------
