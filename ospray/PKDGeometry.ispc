@@ -15,18 +15,22 @@
 // ======================================================================== //
 
 // ospray
-#include "ospray/math/vec.ih"
-#include "ospray/math/box.ih"
-#include "ospray/common/Ray.ih"
-#include "ospray/common/Model.ih"
-#include "ospray/geometry/Geometry.ih"
-#include "ospray/transferFunction/LinearTransferFunction.ih"
+#include "math/vec.ih"
+#include "math/box.ih"
+#include "common/Ray.ih"
+#include "common/Model.ih"
+#include "geometry/Geometry.ih"
+#include "transferFunction/LinearTransferFunction.ih"
 // this module
 #include "PKDGeometry.ih"
+#include "PKDConfig.h"
 // embree
 #include "embree2/rtcore.isph"
 #include "embree2/rtcore_scene.isph"
 #include "embree2/rtcore_geometry_user.isph"
+#if PARTIKD_LIDAR_ENABLED
+#include "ColorMask.h"
+#endif
 
 static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
                                           uniform Model *uniform model,
@@ -88,7 +92,6 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
 #undef  DG_NS_FACEFORWARD
 #undef  DG_NG_NORMALIZE
 #undef  DG_NS_NORMALIZE
-
 }
 
 void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,

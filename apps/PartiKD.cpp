@@ -15,6 +15,10 @@
 // ======================================================================== //
 
 #include "PartiKD.h"
+#include "../ospray/MinMaxBVH2.h"
+
+#include "ospcommon/constants.h"
+#include "ospcommon/FileName.h"
 
 #define CHECK 1
 
@@ -103,7 +107,7 @@ namespace ospray {
 #if DIM_ROUND_ROBIN
     const size_t dim = depth % 3;
 #else
-    const size_t dim = embree::maxDim(bounds.size());
+    const size_t dim = maxDim(bounds.size());
     // if (depth < 4) { PRINT(bounds); printf("depth %ld-> dim %ld\n",depth,dim); }
 #endif
     const size_t N = numParticles;

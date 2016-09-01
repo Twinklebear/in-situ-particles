@@ -15,7 +15,7 @@
 ## ======================================================================== ##
 
 # ------------------------------------------------------------
-ospray_create_library(module_pkd_builder
+set(APP_SRCS
   PartiKD.cpp
   ParticleModel.cpp
   # importers
@@ -24,7 +24,4 @@ ospray_create_library(module_pkd_builder
   ImportXYZ.cpp
   ImportCosmicWeb.cpp
 )
-if (NOT THIS_IS_MIC)
-  ospray_create_application(PartiKD PartiKDApp.cpp LINK module_pkd_builder xml)
-endif()
 

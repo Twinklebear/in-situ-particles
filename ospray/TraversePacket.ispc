@@ -15,14 +15,15 @@
 // ======================================================================== //
 
 // ospray
-#include "ospray/math/vec.ih"
-#include "ospray/math/box.ih"
-#include "ospray/common/Ray.ih"
-#include "ospray/geometry/Geometry.ih"
-#include "ospray/common/Model.ih"
-#include "ospray/transferFunction/LinearTransferFunction.ih"
+#include "math/vec.ih"
+#include "math/box.ih"
+#include "common/Ray.ih"
+#include "geometry/Geometry.ih"
+#include "common/Model.ih"
+#include "transferFunction/LinearTransferFunction.ih"
 // this module
 #include "PKDGeometry.ih"
+#include "PKDConfig.h"
 // embree
 #include "embree2/rtcore.isph"
 #include "embree2/rtcore_scene.isph"
@@ -105,6 +106,7 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
 
   // if (dbg) print("ISEC2\n");
   // do attribute alpha test, if both attribute and transfer fct are set
+#if !PARTIKD_LIDAR_ENABLED
   if ((self->attribute!=NULL) & (self->transferFunction!=NULL)) {
     // -------------------------------------------------------
     // do attribute test
@@ -123,6 +125,7 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
     if (alpha <= .5f)
       return false;
   }
+#endif
 
   // if (dbg) print("ISEC3\n");
   // found a hit - store it
