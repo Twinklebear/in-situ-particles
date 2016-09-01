@@ -24,14 +24,12 @@ if (OSPRAY_MODULE_PARTIKD)
   endif()
 
   configure_mpi()
-
-  add_subdirectory(apps)
   # Why do we need to configure MPI again when ospray has already found it?
   # Is it b/c it's done in the ospray dir and not for the entire project?
   # Should maybe be done project wide so the modules don't need to re-find it
   include_directories(${MPI_CXX_INCLUDE_PATH})
 
-  ospray_create_library(module_pkd
+  ospray_create_library(ospray_module_pkd
     ospray/PKDGeometry.cpp
     ospray/PKDGeometry.ispc
     ospray/MinMaxBVH2.cpp

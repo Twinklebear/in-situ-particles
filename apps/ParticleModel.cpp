@@ -17,13 +17,6 @@
 #include "ParticleModel.h"
 
 namespace ospray {
-
-  // file importers
-  namespace uintah { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
-  namespace xyz { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
-  namespace cosmos { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
-  namespace cosmic_web { void importModel(ParticleModel *model, const ospcommon::FileName &s); }
-
   /*! helper function that creates a pseudo-random color for a given
       ID; this is used to generate initial colors for atom types, if
       the model file doesn't specify these colors explicitly */
@@ -36,46 +29,6 @@ namespace ospray {
     return vec3f((g % mx)*(1.f/(mx-1)),
                  (g % my)*(1.f/(my-1)),
                  (g % mz)*(1.f/(mz-1)));
-  }
-
-  //! \brief load a model (using the built-in model importers for
-  //! various file formats). throw an exception if this cannot be
-  //! done
-  void ParticleModel::load(const ospcommon::FileName &fn)
-  {
-    if (fn.ext() == "RANDOM") {
-      size_t num = atol(fn.str().c_str());
-      std::cout << "#osp:pkd: generating model of " << num << " random particles" << std::endl;
-      for (int i=0;i<num;i++) {
-        vec3f p(drand48(),drand48(),drand48());
-        position.push_back(p);
-        addAttribute("random",
-                     cos(11*p.x+5*p.y+7*p.z)+
-                     cos(5*p.y+7*p.z)+
-                     sin(13*p.x*p.y+11.f*p.x)*cos(11*p.z));
-      }
-    } else if (fn.ext() == "REGULAR") {
-      size_t num = atol(fn.str().c_str());
-      std::cout << "#osp:pkd: generating model of " << num << " random particles" << std::endl;
-      for (int z=0;z<num;z++)
-        for (int y=0;y<num;y++)
-          for (int x=0;x<num;x++)
-            position.push_back(vec3f(x,y,z));
-    } else if (fn.ext() == "xml") {
-      // assume uintah format
-      uintah::importModel(this,fn);
-    } else if (fn.ext() == "dat") {
-      // assume uintah format
-      cosmic_web::importModel(this,fn);
-    } else if (fn.ext() == "xyz") {
-      // assume uintah format
-      xyz::importModel(this,fn);
-    } else if (fn.ext() == "cosmos") {
-      // assume uintah format
-      cosmos::importModel(this,fn);
-    } else {
-      throw std::runtime_error("unknonw file format '"+fn.str()+"'");
-    }
   }
 
   uint32 ParticleModel::getAtomTypeID(const std::string &name)

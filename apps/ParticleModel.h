@@ -65,11 +65,6 @@ namespace ospray {
     std::vector<int>   type;       //!< 'type' of particle (e.g., the atom type for atomistic models)
     std::vector<Attribute *> attribute;
 
-    //! \brief load a model (using the built-in model importers for
-    //! various file formats). throw an exception if this cannot be
-    //! done
-    void load(const ospcommon::FileName &fn);
-
     //! get attributeset of given name; create a new one if not yet exists */
     Attribute *getAttribute(const std::string &name);
 
