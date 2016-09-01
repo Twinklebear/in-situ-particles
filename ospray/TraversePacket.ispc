@@ -38,8 +38,8 @@ inline varying bool PartiKDGeometry_intersectPrim(PartiKDGeometry *uniform self,
                                                   uniform Particle &p,
                                                   uniform primID_t primID,
                                                   varying Ray &ray,
-												  const varying float t_in_0,
-												  const varying float t_out_0)
+                                                  const varying float t_in_0,
+                                                  const varying float t_out_0)
 {
   // uniform bool dbg = false; //(rayID == 338);
   
@@ -339,7 +339,6 @@ inline void pkd_traverse_packet(uniform PartiKDGeometry *uniform self,
   float t_in = ray.t0, t_out = ray.t;
 
   intersectBox(ray, self->sphereBounds, t_in, t_out);
-
   if (t_out < t_in)
     return;
   

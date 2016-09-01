@@ -118,9 +118,9 @@ inline void shade_ao(uniform ISPRenderer *uniform self,
                      void *uniform perFrameData)
 {
   if (ray.geomID < 0) {
-    color = self->super.backgroundEnabled ? self->super.bgColor :
-                                            make_vec3f(0.f);
-    alpha = self->super.backgroundEnabled ? 1.f : 0.f;
+    //color = self->super.backgroundEnabled ? self->super.bgColor : make_vec3f(0.f);
+    color = make_vec3f(0.f, 0.f, 0.f);
+    alpha = 0.f;
     return;
   }
   uniform PassInfo *uniform passInfo = (uniform PassInfo *uniform)perFrameData;
@@ -197,10 +197,11 @@ void ISPRenderer_renderSample(uniform Renderer *uniform _self,
 
   if (perFrameData) {
     uniform PassInfo *uniform passInfo = (uniform PassInfo *uniform)perFrameData;
-    //sample.ray.t0 = passInfo->region.lower;
-    //sample.ray.t = passInfo->region.upper;
+    sample.ray.t0 = passInfo->region.lower;
+    sample.ray.t = passInfo->region.upper;
     PartiKDGeometry_intersect_packet(passInfo->block->ispc_pkd, sample.ray, passInfo->block->blockID);
   } else {
+    print("WAT\n");
     traceRay(self->super.model, sample.ray);
   }
   sample.z = sample.ray.t;
@@ -241,10 +242,8 @@ void ISPRenderer_renderSample(uniform ISPRenderer *uniform self,
                               uniform int32 myRank,
                               uniform bool isMyTile)
 {
-  //box1f blockRegion = make_box1f(+inf,-inf);
-  region1f blockRegion = make_region1f(+inf,-inf);
-  float org_ray_t0 = fgSample.ray.t0;
-  float org_ray_t1 = fgSample.ray.t;
+  const float org_ray_t0 = fgSample.ray.t0;
+  const float org_ray_t1 = fgSample.ray.t;
   uniform int numBlocksMine = 0;
   for (uniform int blockID = 0; blockID < numBlocks; ++blockID) {
     float t0 = org_ray_t0;
@@ -255,8 +254,6 @@ void ISPRenderer_renderSample(uniform ISPRenderer *uniform self,
     } else {
       // ray hits this block, tile will need it rendered
       tileNeedsBlock[blockID] = true;
-      blockRegion.lower = min(blockRegion.lower, t0);
-      blockRegion.upper = max(blockRegion.upper, t1);
 
       // now, render this block if it's one of ours
       if (!block[blockID].isMine) {
@@ -293,7 +290,7 @@ void ISPRenderer_renderSample(uniform ISPRenderer *uniform self,
   // tile at all.
   bgSample.rgb = make_vec3f(0.f,0.f,0.f);
   bgSample.z = inf;
-  bgSample.alpha = 0.f;
+  bgSample.alpha = 1.f;
   if (self->super.backgroundEnabled) {
     bgSample.rgb = self->super.bgColor;
   }
