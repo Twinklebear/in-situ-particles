@@ -110,8 +110,7 @@ namespace ospray {
       tile->region = bgTile.region;
       tile->fbSize = bgTile.fbSize;
       tile->rcp_fbSize = bgTile.rcp_fbSize;
-      // TODO Was not added til later
-      //tile->accumID = accumID;
+      tile->accumID = accumID;
       tile->generation = 1;
       tile->children   = 0;
 
