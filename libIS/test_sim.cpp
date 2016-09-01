@@ -9,7 +9,7 @@ struct vec4f {
 int rank, size;
 std::vector<vec4f> particle;
 const float speed = .01f;
-const int NUM_PARTICLES = 50000;
+const int NUM_PARTICLES = 20000;
 
 void doTimeStep()
 {
