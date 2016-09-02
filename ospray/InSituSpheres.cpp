@@ -64,7 +64,7 @@ namespace ospray {
   void InSituSpheres::commit() {
     radius = getParam1f("radius", 0.01f);
     server = getParamString("server_name", NULL);
-    poll_delay = getParam1f("poll_rate", 10.0);
+    poll_delay = getParam1f("poll_rate", -1.f);
     port = getParam1i("port", -1);
     if (server.empty() || port == -1){
       throw std::runtime_error("#ospray:geometry/InSituSpheres: No simulation server and/or port specified");
@@ -95,12 +95,12 @@ namespace ospray {
     // Wait for all workers to finish committing their pkds
     MPI_CALL(Barrier(ospray::mpi::worker.comm));
 
-#if !POLL_ONCE
-    // Launch the thread to poll the sim if we haven't already
-    std::cout << "ospray::InSituSpheres: launching background polling thread\n";
-    auto sim_poller = std::thread([&]{ pollSimulation(); });
-    sim_poller.detach();
-#endif
+    if (poll_delay > 0.f) {
+      // Launch the thread to poll the sim if we haven't already
+      std::cout << "ospray::InSituSpheres: launching background polling thread\n";
+      auto sim_poller = std::thread([&]{ pollSimulation(); });
+      sim_poller.detach();
+    }
   }
 
   void InSituSpheres::pollSimulation(){
