@@ -14,6 +14,9 @@
 // limitations under the License.                                           //
 // ======================================================================== //
 
+#include <thread>
+#include <chrono>
+
 #include <ospray/ospray.h>
 #include <ospcommon/vec.h>
 #include <ospcommon/box.h>
@@ -27,8 +30,8 @@ namespace ospray {
   namespace pkd {
     namespace cs = chaiscript;
 
-    ospray::cpp::Geometry pollOnce(ospray::cpp::Renderer renderer, const std::string &server,
-        const int port, const float radius, box3f &bounds)
+    ospray::cpp::Geometry setupInSituSpheres(ospray::cpp::Renderer renderer, const std::string &server,
+        const int port, const float radius)
     {
       using namespace ospray::cpp;
       std::cout << "#osp:pkd:InSituSpheres: setting up InSituSpheres geometry\n";
@@ -57,10 +60,53 @@ namespace ospray {
 
       geometry.setMaterial(mat);
       geometry.set("radius", radius);
-      geometry.set("poll_rate", -1);
       geometry.set("port", port);
       geometry.set("server_name", server);
       geometry.set("transferFunction", transfer_fn);
+      return geometry;
+    }
+
+    ospray::cpp::Geometry pollSim(ospray::cpp::Renderer renderer, const std::string &server,
+        const int port, const float radius, const float pollRate, box3f &bounds,
+        std::function<void (ospray::cpp::Geometry, const box3f&)> update)
+    {
+      using namespace ospray::cpp;
+      Geometry geometry = setupInSituSpheres(renderer, server, port, radius);
+      geometry.set("poll_rate", pollRate);
+      geometry.commit();
+
+      // Do a single blocking query then spawn a thread to notify us in the future
+      std::cout << "rank " << ospray::mpi::world.rank << " waiting for bounds" << std::endl;
+      std::cout << "pkd::InSituSpheres: MASTER Waiting to recieve world bounds\n";
+      MPI_CALL(Recv(&bounds, 6, MPI_FLOAT, 1, 1,
+            ospray::mpi::world.comm, MPI_STATUS_IGNORE));
+      std::cout << "pkd::InSituSpheres: MASTER recieved world bounds: "
+        << bounds << "\n";
+
+      // TODO: This is a C++14 thing, so we'd want to push it behind some handle we move into
+      // and then give to the thread.
+      std::thread poller([callback=std::move(update), geometry](){
+          box3f newBounds;
+          while (true){
+            std::cout << "pkd::InSituSpheres: MASTER Waiting to recieve world bounds\n";
+            MPI_CALL(Recv(&newBounds, 6, MPI_FLOAT, 1, 1,
+                ospray::mpi::world.comm, MPI_STATUS_IGNORE));
+            std::cout << "pkd::InSituSpheres: MASTER recieved world bounds: "
+            << newBounds << "\n";
+            callback(geometry, newBounds);
+          }
+      });
+      poller.detach();
+
+      return geometry;
+    }
+
+    ospray::cpp::Geometry pollOnce(ospray::cpp::Renderer renderer, const std::string &server,
+        const int port, const float radius, box3f &bounds)
+    {
+      using namespace ospray::cpp;
+      Geometry geometry = setupInSituSpheres(renderer, server, port, radius);
+      geometry.set("poll_rate", -1);
       geometry.commit();
 
       // Wait for the geometry to actually get data from the simulation
@@ -74,6 +120,7 @@ namespace ospray {
     }
     void registerModule(cs::ChaiScript &engine) {
       engine.add(cs::fun(&pollOnce), "pkdPollOnce");
+      engine.add(cs::fun(&pollSim), "pkdPollSim");
     }
     void printHelp() {
       std::cout << "==PKD Module (InSituSpheres) Help==\n"

@@ -1,0 +1,24 @@
+def geometry_updated(geom, bounds){
+  print("geometry updated!");
+  geom.commit();
+  m.commit();
+  refresh();
+}
+
+var bounds = box3f();
+var isp_renderer = Renderer("isp")
+// This is the pollOnce mode
+//iss = pkdPollOnce(r, "localhost", 29374, 0.015, bounds);
+var iss = pkdPollSim(isp_renderer, "localhost", 29374, 0.015, 1.0, bounds, geometry_updated);
+
+m.addGeometry(iss);
+m.commit();
+isp_renderer.set("camera", c);
+isp_renderer.set("model", m);
+isp_renderer.commit();
+setRenderer(isp_renderer);
+
+setWorldBounds(bounds);
+refresh();
+
+
