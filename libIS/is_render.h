@@ -1,3 +1,5 @@
+#pragma once
+
 #include <mpi.h>
 #include <stdexcept>
 #include <stdio.h>
