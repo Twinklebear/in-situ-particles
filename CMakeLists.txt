@@ -55,6 +55,7 @@ if (OSPRAY_MODULE_PARTIKD)
   LINK
     ospray
     ospray_xml
+    ospray_script
   )
 
 endif()
