@@ -1,0 +1,38 @@
+global geom_updated = false;
+
+def geometry_updated(geom, bounds){
+  geom_updated = true;
+}
+
+var vp = vec3f(1.101944, 1.572530, -0.593663);
+var vu = vec3f(0.000000, 1.000000, 0.000000);
+var vi = vec3f(0.497749, 0.496064, 0.496266);
+var dir = vi - vp;
+c.set("pos", vp)
+c.set("dir", dir);
+c.set("up", vu);
+c.commit();
+
+var bounds = box3f();
+var isp_renderer = Renderer("isp")
+var iss = pkdPollSim(isp_renderer, "localhost", 29374, 0.015, 1.0, bounds, geometry_updated);
+
+m.addGeometry(iss);
+m.commit();
+isp_renderer.set("camera", c);
+isp_renderer.set("model", m);
+isp_renderer.commit();
+defaultFixture.setRenderer(isp_renderer);
+
+for (var i = 0; i < 10; ++i){
+  var stats = defaultFixture.benchmark(2, 5);
+  print(stats);
+  defaultFixture.saveImage("benchstep" + to_string(i));
+  if (geom_updated){
+    print("UPDATING GEOMETRY");
+    geom_updated = false;
+    iss.commit();
+    m.commit();
+  }
+}
+
