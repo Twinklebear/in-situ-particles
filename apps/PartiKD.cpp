@@ -27,7 +27,6 @@
 
 namespace ospray {
   using std::endl;
-  using std::cout;
 
   void PartiKD::setDim(size_t ID, int dim) const
   {
@@ -98,7 +97,6 @@ namespace ospray {
                          const size_t depth) const
   {
     // if (depth < 4)
-    // std::cout << "#osp:pkd: building subtree " << nodeID << std::endl;
     if (!hasLeftChild(nodeID)) 
       // has no children -> it's a valid kd-tree already :-)
       return;
@@ -323,7 +321,6 @@ namespace ospray {
 
   void PartiKD::build(ParticleModel *model) 
   {
-    PING;
     assert(this->model == NULL);
     assert(model);
     this->model = model;
@@ -348,11 +345,8 @@ namespace ospray {
     numLevels = 0;
     size_t nodeID = 0;
     while (isValidNode(nodeID)) { ++numLevels; nodeID = leftChildOf(nodeID); }
-    PRINT(numLevels);
 
     const box3f &bounds = model->getBounds();
-    std::cout << "#osp:pkd: bounds of model " << bounds << std::endl;
-    std::cout << "#osp:pkd: number of input particles " << numParticles << std::endl;
     buildRec(0,bounds,0);
   }
 

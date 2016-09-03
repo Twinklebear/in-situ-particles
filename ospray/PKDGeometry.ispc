@@ -154,7 +154,6 @@ export void PartiKDGeometry_set(void       *uniform _geom,
   geom->geometry.model  = model;
   geom->isQuantized     = isQuantized;
   geom->geometry.geomID = geomID;
-  print("pkd geom id = %\n", geomID);
   geom->particleRadius  = particleRadius;
   geom->particle        = particle;
   geom->numParticles    = numParticles;
@@ -164,7 +163,6 @@ export void PartiKDGeometry_set(void       *uniform _geom,
   geom->attr_lo         = attr_lo;
   geom->attr_hi         = attr_hi;
   geom->innerNode_attributeMask   = innerNode_attributeMask;
-  print("array of inner-node attribute masks: %\n",innerNode_attributeMask);
 
   geom->transferFunction  = (TransferFunction *uniform)transferFunction;
 
@@ -173,20 +171,19 @@ export void PartiKDGeometry_set(void       *uniform _geom,
                        (uniform RTCBoundsFunc)&PartiKDGeometry_bounds);
 
   if (useSPMD) {
-  print("creating PKD with ***SPMD*** traversal\n");
-  rtcSetIntersectFunction
-    (model->embreeSceneHandle,geomID,
-     (uniform RTCIntersectFuncVarying)&PartiKDGeometry_intersect_spmd);
-  rtcSetOccludedFunction
-    (model->embreeSceneHandle,geomID,
-     (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_spmd);
+    rtcSetIntersectFunction
+      (model->embreeSceneHandle,geomID,
+       (uniform RTCIntersectFuncVarying)&PartiKDGeometry_intersect_spmd);
+    rtcSetOccludedFunction
+      (model->embreeSceneHandle,geomID,
+       (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_spmd);
   } else {
-  rtcSetIntersectFunction
-    (model->embreeSceneHandle,geomID,
-     (uniform RTCIntersectFuncVarying)&PartiKDGeometry_intersect_packet);
-  rtcSetOccludedFunction
-    (model->embreeSceneHandle,geomID,
-     (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_packet);
+    rtcSetIntersectFunction
+      (model->embreeSceneHandle,geomID,
+       (uniform RTCIntersectFuncVarying)&PartiKDGeometry_intersect_packet);
+    rtcSetOccludedFunction
+      (model->embreeSceneHandle,geomID,
+       (uniform RTCOccludedFuncVarying)&PartiKDGeometry_occluded_packet);
   }
   if (transferFunction) 
     PartiKDGeometry_updateTransferFunction(geom,transferFunction);

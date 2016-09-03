@@ -75,23 +75,16 @@ namespace pkd {
     geometry.commit();
 
     // Do a single blocking query then spawn a thread to notify us in the future
-    std::cout << "rank " << ospray::mpi::world.rank << " waiting for bounds" << std::endl;
-    std::cout << "pkd::InSituSpheres: MASTER Waiting to recieve world bounds\n";
     MPI_CALL(Recv(&bounds, 6, MPI_FLOAT, 1, 1,
           ospray::mpi::world.comm, MPI_STATUS_IGNORE));
-    std::cout << "pkd::InSituSpheres: MASTER recieved world bounds: "
-      << bounds << "\n";
 
     // TODO: This is a C++14 thing, so we'd want to push it behind some handle we move into
     // and then give to the thread.
     std::thread poller([callback, geometry](){
         box3f newBounds;
         while (true){
-          std::cout << "pkd::InSituSpheres: MASTER Waiting to recieve world bounds\n";
           MPI_CALL(Recv(&newBounds, 6, MPI_FLOAT, 1, 1,
               ospray::mpi::world.comm, MPI_STATUS_IGNORE));
-          std::cout << "pkd::InSituSpheres: MASTER recieved world bounds: "
-          << newBounds << "\n";
           callback(geometry, newBounds);
         }
     });
@@ -109,12 +102,8 @@ namespace pkd {
     geometry.commit();
 
     // Wait for the geometry to actually get data from the simulation
-    std::cout << "rank " << ospray::mpi::world.rank << " waiting for bounds" << std::endl;
-    std::cout << "pkd::InSituSpheres: MASTER Waiting to recieve world bounds\n";
     MPI_CALL(Recv(&bounds, 6, MPI_FLOAT, 1, 1,
           ospray::mpi::world.comm, MPI_STATUS_IGNORE));
-    std::cout << "pkd::InSituSpheres: MASTER recieved world bounds: "
-      << bounds << "\n";
     return geometry;
   }
   void registerModule(cs::ChaiScript &engine) {

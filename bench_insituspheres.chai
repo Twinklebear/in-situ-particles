@@ -31,7 +31,6 @@ for (var i = 0; i < 10; ++i){
   print(stats);
   defaultFixture.saveImage("benchstep" + to_string(i));
   if (geom_updated){
-    print("UPDATING GEOMETRY");
     geom_updated = false;
     iss.commit();
     m.commit();

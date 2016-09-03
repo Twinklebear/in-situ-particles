@@ -35,7 +35,6 @@ namespace ospray {
   InSituSpheres::InSituSpheres() : simPollerShouldExit(false) {}
 
   InSituSpheres::~InSituSpheres() {
-    PING;
     simPollerShouldExit = true;
     simPoller.join();
     ddSpheres.clear();
@@ -80,7 +79,6 @@ namespace ospray {
     // Do a single blocking poll to get an initial timestep to render if the thread
     // hasn't been started
     if (nextDDSpheres.empty()){
-      std::cout << "ospray::InSituSpheres: Making blocking initial query\n";
       getTimeStep();
     }
 
@@ -88,7 +86,6 @@ namespace ospray {
     TransferFunction *tfn = (TransferFunction*)getParamObject("transferFunction", NULL);
     for (auto &spheres : ddSpheres) {
       if (spheres.isMine) {
-        std::cout << "committing.." << std::endl;
         spheres.pkd->setParam("transferFunction", tfn);
         spheres.pkd->commit();
       }
@@ -103,13 +100,11 @@ namespace ospray {
 
   void InSituSpheres::pollSimulation(){
     while (!simPollerShouldExit) {
-      std::cout << "ospray::InSituSpheres: Polling for new timestep after " << poll_delay << "s\n";
       const auto millis = std::chrono::milliseconds(
           static_cast<std::chrono::milliseconds::rep>(poll_delay * 1000.0));
       std::this_thread::sleep_for(millis);
       getTimeStep();
     }
-    std::cout << "Sim poller exiting" << std::endl;
   }
 
   void InSituSpheres::getTimeStep(){
@@ -122,16 +117,12 @@ namespace ospray {
         grid, ghostRegionWidth);
 
     if (simPollerShouldExit){
-      std::cout << "Sim poller aborting getTimeStep" << std::endl;
       delete dd;
       return;
     }
 
     int rank = ospray::mpi::worker.rank;
     int size = ospray::mpi::worker.size;
-    if (rank == 0){
-      PRINT(dd->worldBounds);
-    }
     nextDDSpheres.clear();
     for (size_t i = 0; i < dd->numBlocks; ++i) {
       const DomainGrid::Block &b = dd->block[i];
@@ -147,7 +138,6 @@ namespace ospray {
     }
 
 #if PRINT_FULL_PARTICLE_COUNT
-    // TODO: Should count across all ddSpheres
     uint64_t num_particles = 0;
     for (const auto &b : nextDDSpheres) {
       if (b.firstOwner == rank) {
@@ -210,14 +200,13 @@ namespace ospray {
 #if USE_RENDER_RANK_ATTRIB
     const int rank = ospray::mpi::worker.rank;
 #endif
-    PRINT(ddspheres.actualDomain);
-    PRINT(ddspheres.firstOwner);
-    PRINT(ddspheres.numOwners);
+#if 0
     std::cout << "  lo " << b.actualDomain.lower << std::endl;
     std::cout << "  hi " << b.actualDomain.upper << std::endl;
     std::cout << "  ghost lo " << b.ghostDomain.lower << std::endl;
     std::cout << "  ghost hi " << b.ghostDomain.upper << std::endl;
     std::cout << "  #p " << b.particle.size() / OSP_IS_STRIDE_IN_FLOATS << std::endl;
+#endif
     for (size_t i = 0; i < b.particle.size() / OSP_IS_STRIDE_IN_FLOATS; ++i){
       size_t pid = i * OSP_IS_STRIDE_IN_FLOATS;
       model.position.push_back(vec3f(b.particle[pid], b.particle[pid + 1],
@@ -235,9 +224,6 @@ namespace ospray {
       throw std::runtime_error("#ospray:geometry/InSituSpheres: no 'InSituSpheres' data loaded from sim");
     }
     // We've got our positions so now send it to the ospray geometry
-    std::cout << "#osp: creating 'InSituSpheres' geometry, #InSituSpheres = "
-      << model.position.size() << std::endl;
-
     if (model.position.size() >= (1ULL << 30)) {
       throw std::runtime_error("#ospray::InSituSpheres: too many InSituSpheres in this "
           "sphere geometry. Consider splitting this "
@@ -248,7 +234,6 @@ namespace ospray {
           "without causing address overflows)");
     }
     // Build the pkd tree on the particles
-    std::cout << "InSituSpheres: building pkd\n";
     partikd.build(&model);
 
     ddspheres.positions = std::make_shared<std::vector<vec3f>>(std::move(model.position));
@@ -264,8 +249,6 @@ namespace ospray {
       Data *attribData = new Data(ddspheres.attributes->size(), OSP_FLOAT, ddspheres.attributes->data(),
           OSP_DATA_SHARED_BUFFER);
       ddspheres.pkd->findParam("attribute", 1)->set(attribData);
-    } else {
-      std::cout << "No attributes on particles" << std::endl;
     }
   }
 

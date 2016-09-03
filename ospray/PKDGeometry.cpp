@@ -28,7 +28,6 @@ namespace ospray {
   PartiKDGeometry::PartiKDGeometry()
     : particleRadius(.02f)
   {
-    PING;
     ispcEquivalent = ispc::PartiKDGeometry_create(this);
   }
 
@@ -80,7 +79,6 @@ namespace ospray {
     model's acceleration structure */
   void PartiKDGeometry::finalize(Model *model) 
   {
-    PING;
     // -------------------------------------------------------
     // parse parameters, using hard assertions (exceptions) for now.
     //
@@ -96,7 +94,6 @@ namespace ospray {
     numParticles = particleData->numItems;
     format = particleData->type;
     bool isQuantized = format == OSP_ULONG;
-    PRINT(isQuantized);
     const box3f centerBounds = getBounds();
     
     attributeData = getParamData("attribute",NULL);
@@ -127,7 +124,6 @@ namespace ospray {
 
     // Attribute culling on the lidar type-punned RGB data doesn't make sense, so don't do it
     if (attribute) {
-      cout << "#osp:pkd: found attribute, computing range and min/max bit array" << endl;
       if (hasParam("attribute_low") && hasParam("attribute_high")) {
         attr_lo = getParam1f("attribute_low", 0.f);
         attr_hi = getParam1f("attribute_high", 0.f);
@@ -141,7 +137,6 @@ namespace ospray {
 
       binBitsArray = new uint32[numInnerNodes];
       size_t numBytesRangeTree = numInnerNodes * sizeof(uint32);
-      cout << "#osp:pkd: num bytes in range tree " << numBytesRangeTree << endl;
       for (long long pID=numInnerNodes-1;pID>=0;--pID) {
         size_t lID = 2*pID+1;
         size_t rID = lID+1;
@@ -155,7 +150,6 @@ namespace ospray {
         else if (lID < numParticles)
           lBits = getAttributeBits(attribute[lID],attr_lo,attr_hi);
         binBitsArray[pID] = lBits|rBits;
-        // cout << " bits " << pID << " : " << (int*)lBits << " " << (int*)rBits << endl;
       }
       cout << "#osp:pkd: found attribute [" << attr_lo << ".."
         << attr_hi << "], root bits " << (int*)(int64)binBitsArray[0] << endl;
