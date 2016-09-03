@@ -1,7 +1,9 @@
 def geometry_updated(geom, bounds){
   print("geometry updated!");
+  scriptLock();
   geom.commit();
   m.commit();
+  scriptUnlock();
   refresh();
 }
 
