@@ -9,7 +9,6 @@
 
 #include "is_common.h"
 
-#include "ospray/common/OSPCommon.h"
 #include "ospray/mpi/MPICommon.h"
 
 namespace ospray {
