@@ -26,6 +26,14 @@ namespace ospray {
   struct PartiKDGeometry : public ospray::Geometry {
     //! Constructor
     PartiKDGeometry();
+    ~PartiKDGeometry() {
+      if (particleData.ptr) {
+        particleData->refDec();
+      }
+      if (attributeData.ptr) {
+        attributeData->refDec();
+      }
+    }
 
     //! \brief common function to help printf-debugging 
     virtual std::string toString() const { return "ospray::PartiKDGeometry"; }

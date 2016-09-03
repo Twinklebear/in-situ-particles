@@ -32,10 +32,12 @@
 namespace ospray {
   const std::string attribute_name = "attrib";
 
-  InSituSpheres::InSituSpheres(){}
+  InSituSpheres::InSituSpheres() : simPollerShouldExit(false) {}
 
-  InSituSpheres::~InSituSpheres()
-  {
+  InSituSpheres::~InSituSpheres() {
+    PING;
+    simPollerShouldExit = true;
+    simPoller.join();
     ddSpheres.clear();
   }
 
@@ -92,23 +94,22 @@ namespace ospray {
       }
     }
 
-    // Wait for all workers to finish committing their pkds
-    MPI_CALL(Barrier(ospray::mpi::worker.comm));
-
-    if (poll_delay > 0.f) {
+    if (poll_delay > 0.f && simPoller.get_id() == std::thread::id()) {
       // Launch the thread to poll the sim if we haven't already
       std::cout << "ospray::InSituSpheres: launching background polling thread\n";
-      auto sim_poller = std::thread([&]{ pollSimulation(); });
-      sim_poller.detach();
+      simPoller = std::thread([&]{ pollSimulation(); });
     }
   }
 
   void InSituSpheres::pollSimulation(){
-    std::cout << "ospray::InSituSpheres: Polling for new timestep after " << poll_delay << "s\n";
-    const auto millis = std::chrono::milliseconds(
-        static_cast<std::chrono::milliseconds::rep>(poll_delay * 1000.0));
-    std::this_thread::sleep_for(millis);
-    getTimeStep();
+    while (!simPollerShouldExit) {
+      std::cout << "ospray::InSituSpheres: Polling for new timestep after " << poll_delay << "s\n";
+      const auto millis = std::chrono::milliseconds(
+          static_cast<std::chrono::milliseconds::rep>(poll_delay * 1000.0));
+      std::this_thread::sleep_for(millis);
+      getTimeStep();
+    }
+    std::cout << "Sim poller exiting" << std::endl;
   }
 
   void InSituSpheres::getTimeStep(){
@@ -119,6 +120,12 @@ namespace ospray {
 #endif
     DomainGrid *dd = ospIsPullRequest(ospray::mpi::worker.comm, server.c_str(), port,
         grid, ghostRegionWidth);
+
+    if (simPollerShouldExit){
+      std::cout << "Sim poller aborting getTimeStep" << std::endl;
+      delete dd;
+      return;
+    }
 
     int rank = ospray::mpi::worker.rank;
     int size = ospray::mpi::worker.size;

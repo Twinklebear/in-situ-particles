@@ -81,6 +81,8 @@ namespace ospray {
     virtual ~InSituSpheres();
 
   private:
+    std::thread simPoller;
+    std::atomic<bool> simPollerShouldExit;
     // The next set of particle data that we'll be switching too
     std::vector<DDSpheres> nextDDSpheres;
     // Repeatedly poll from the simulation until poller_exit
