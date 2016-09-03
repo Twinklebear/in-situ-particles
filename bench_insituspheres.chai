@@ -15,7 +15,9 @@ c.commit();
 
 var bounds = box3f();
 var isp_renderer = Renderer("isp")
-var iss = pkdPollSim(isp_renderer, "localhost", 29374, 0.015, 1.0, bounds, geometry_updated);
+var sim_head_node = getEnvString("SIMULATION_HEAD_NODE");
+print("Connecting to sim on " + sim_head_node);
+var iss = pkdPollSim(isp_renderer, sim_head_node, 29374, 0.015, 1.0, bounds, geometry_updated);
 
 m.addGeometry(iss);
 m.commit();
