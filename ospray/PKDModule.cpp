@@ -67,7 +67,7 @@ namespace pkd {
 
   ospray::cpp::Geometry pollSim(ospray::cpp::Renderer renderer, const std::string &server,
       const int port, const float radius, const float pollRate, box3f &bounds,
-      std::function<void (ospray::cpp::Geometry, const box3f&)> update)
+      std::function<void (ospray::cpp::Geometry, const box3f&)> callback)
   {
     using namespace ospray::cpp;
     Geometry geometry = setupInSituSpheres(renderer, server, port, radius);
@@ -84,7 +84,7 @@ namespace pkd {
 
     // TODO: This is a C++14 thing, so we'd want to push it behind some handle we move into
     // and then give to the thread.
-    std::thread poller([callback=std::move(update), geometry](){
+    std::thread poller([callback, geometry](){
         box3f newBounds;
         while (true){
           std::cout << "pkd::InSituSpheres: MASTER Waiting to recieve world bounds\n";
