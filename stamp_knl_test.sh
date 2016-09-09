@@ -21,7 +21,7 @@ TEST_SIMULATION=$MODULE_ISP/libIS/build/test_sim
 UINTAH_DIR=$WORK/maverick/uintah/
 UINTAH_SIMULATION=$UINTAH_DIR/uintah-modified/build_knl/StandAlone/sus
 UINTAH_RESTART_FILE=$UINTAH_DIR/restart-OFC-wasatch-50Mpps
-UINTAH_RANKS=$(($SLURM_NNODES * 64))
+UINTAH_RANKS=$(($SLURM_NNODES * 68))
 
 tmpfile=$(mktemp /tmp/${SLURM_JOB_NAME}-${SLURM_NNODES}-${SLURM_JOB_ID}.XXXXXXX)
 
@@ -33,8 +33,8 @@ set -x
 
 echo "Spawning simulation"
 export OSP_IS_PARTICLE_ATTRIB=p.u
-mpirun -n $UINTAH_RANKS -ppn 64 -f $tmpfile $UINTAH_SIMULATION \
-  -restart $UINTAH_RESTART_FILE | tee $OUT_DIR/uintahlog.txt &
+mpirun -n $UINTAH_RANKS -ppn 68 -f $tmpfile $UINTAH_SIMULATION \
+  -restart $UINTAH_RESTART_FILE | tee $OUT_DIR/${SLURM_JOB_NAME}-uintah-log.txt &
 
 sleep 60
 
@@ -43,7 +43,7 @@ echo "Launching ospBenchmark"
 export I_MPI_PIN_DOMAIN=node
 
 mpirun -np $SLURM_NNODES -ppn 1 -f $tmpfile ./ospBenchmark --module pkd --osp:mpi \
-  --script $BENCH_SCRIPT | tee $OUT_DIR/osplog.txt
+  --script $BENCH_SCRIPT -w 1920 -h 1080 | tee $OUT_DIR/${SLURM_JOB_NAME}-ospray-log.txt
 
 rm $tmpfile
 
