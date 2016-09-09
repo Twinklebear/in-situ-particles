@@ -1,10 +1,11 @@
 #!/bin/bash
 #SBATCH -J insitu-knl-test
-#SBATCH -t 00:08:00
+#SBATCH -t 00:05:00
 #SBATCH -o test_log.txt
-#SBATCH -N 3
-#SBATCH -n 3
-#SBATCH -p development
+# Nodes should be #osp workers + 1 (osp master) + 3 uintah
+#SBATCH -N 8
+#SBATCH -n 8
+#SBATCH -p normal
 
 WORK=/work/03160/will/
 LONESTAR=$WORK/lonestar
@@ -16,7 +17,10 @@ source $LONESTAR/embree-2.10.0.x86_64.linux/embree-vars.sh
 MODULE_ISP=$LONESTAR/ospray/modules/module_in_situ_particles/
 BENCH_SCRIPT=$MODULE_ISP/bench_insituspheres.chai
 
-NUM_OSPRAY_WORKERS=$(($SLURM_NNODES - 1))
+NUM_UINTAH_NODES=3
+NUM_OSPRAY_NODES=$(($SLURM_NNODES - $NUM_UINTAH_NODES))
+NUM_OSPRAY_WORKERS=$(($NUM_OSPRAY_NODES - 1))
+echo "Have $NUM_OSPRAY_WORKERS ospray workers"
 if [ $NUM_OSPRAY_WORKERS -eq 1 ]; then
   dp_grid=(1 1 1)
 elif [ $NUM_OSPRAY_WORKERS -eq 2 ]; then
@@ -43,11 +47,22 @@ TEST_SIMULATION=$MODULE_ISP/libIS/build/test_sim
 UINTAH_DIR=$WORK/maverick/uintah/
 UINTAH_SIMULATION=$UINTAH_DIR/uintah-modified/build_knl/StandAlone/sus
 UINTAH_RESTART_FILE=$UINTAH_DIR/restart-OFC-wasatch-50Mpps
-UINTAH_RANKS=$(($SLURM_NNODES * 68))
+UINTAH_RANKS_PER_NODE=34
+UINTAH_RANKS=$(($SLURM_NNODES * $UINTAH_RANKS_PER_NODE))
 
-tmpfile=$(mktemp /tmp/${SLURM_JOB_NAME}-${SLURM_NNODES}-${SLURM_JOB_ID}.XXXXXXX)
+start_osp_workers=$(($NUM_UINTAH_NODES + 1))
+OSPRAY_NODE_LIST=`scontrol show hostname $SLURM_NODELIST | tail -n +${start_osp_workers} | tr '\n' ',' | sed s/,$//`
+UINTAH_NODE_LIST=`scontrol show hostname $SLURM_NODELIST | head -n ${NUM_UINTAH_NODES} | tr '\n' ',' | sed s/,$//`
 
-`scontrol show hostname $SLURM_NODELIST | tr '\n' ',' | sed s/,$//` > $tmpfile
+OSPRAY_HOST_FILE=$(mktemp /tmp/${SLURM_JOB_NAME}-${SLURM_NNODES}-${SLURM_JOB_ID}-osp.XXXXXXX)
+UINTAH_HOST_FILE=$(mktemp /tmp/${SLURM_JOB_NAME}-${SLURM_NNODES}-${SLURM_JOB_ID}-uin.XXXXXXX)
+
+echo "Uintah using $UINTAH_NODE_LIST"
+echo "OSPRay using $OSPRAY_NODE_LIST"
+
+echo "$OSPRAY_NODE_LIST" > $OSPRAY_HOST_FILE
+echo "$UINTAH_NODE_LIST" > $UINTAH_HOST_FILE
+
 export SIMULATION_HEAD_NODE=`scontrol show hostname $SLURM_NODELIST | head -n 1`
 
 cd $WORK_DIR
@@ -55,7 +70,9 @@ set -x
 
 echo "Spawning simulation"
 export OSP_IS_PARTICLE_ATTRIB=p.u
-mpirun -n $UINTAH_RANKS -ppn 68 -f $tmpfile $UINTAH_SIMULATION \
+
+# TODO: This won't work b/c mpirun and SLURM are all fucked up on Stampede 1.5 currently
+mpirun -n $UINTAH_RANKS -ppn $UINTAH_RANKS_PER_NODE -f $UINTAH_HOST_FILE $UINTAH_SIMULATION \
   -restart $UINTAH_RESTART_FILE | tee $OUT_DIR/${SLURM_JOB_NAME}-uintah-log.txt &
 
 sleep 60
@@ -64,10 +81,8 @@ echo "Launching ospBenchmark"
 
 export I_MPI_PIN_DOMAIN=node
 
-mpirun -np $SLURM_NNODES -ppn 1 -f $tmpfile ./ospBenchmark --module pkd --osp:mpi \
+mpirun -n $NUM_OSPRAY_NODES -ppn 1 -f $OSPRAY_HOST_FILE ./ospBenchmark --module pkd --osp:mpi \
   --script $BENCH_SCRIPT -w 1920 -h 1080 | tee $OUT_DIR/${SLURM_JOB_NAME}-ospray-log.txt
-
-rm $tmpfile
 
 scancel -n $SBATCH_JOBID
 
