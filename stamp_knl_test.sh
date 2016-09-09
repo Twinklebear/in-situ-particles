@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH -J insitu-knl-test
-#SBATCH -t 00:05:00
+#SBATCH -t 00:08:00
 #SBATCH -o test_log.txt
 # Nodes should be #osp workers + 1 (osp master) + 3 uintah
-#SBATCH -N 12
-#SBATCH -n 12
+#SBATCH -N 15
+#SBATCH -n 15
 #SBATCH -p normal
 
 WORK=/work/03160/will/
@@ -17,7 +17,7 @@ source $LONESTAR/embree-2.10.0.x86_64.linux/embree-vars.sh
 MODULE_ISP=$LONESTAR/ospray/modules/module_in_situ_particles/
 BENCH_SCRIPT=$MODULE_ISP/bench_insituspheres.chai
 
-NUM_UINTAH_NODES=3
+NUM_UINTAH_NODES=2
 NUM_OSPRAY_NODES=$(($SLURM_NNODES - $NUM_UINTAH_NODES))
 NUM_OSPRAY_WORKERS=$(($NUM_OSPRAY_NODES - 1))
 echo "Have $NUM_OSPRAY_WORKERS ospray workers"
@@ -29,6 +29,8 @@ elif [ $NUM_OSPRAY_WORKERS -eq 4 ]; then
   dp_grid=(2 2 1)
 elif [ $NUM_OSPRAY_WORKERS -eq 8 ]; then
   dp_grid=(2 2 2)
+elif [ $NUM_OSPRAY_WORKERS -eq 12 ]; then
+  dp_grid=(4 3 2)
 elif [ $NUM_OSPRAY_WORKERS -eq 16 ]; then
   dp_grid=(4 2 2)
 elif [ $NUM_OSPRAY_WORKERS -eq 32 ]; then
@@ -47,7 +49,7 @@ TEST_SIMULATION=$MODULE_ISP/libIS/build/test_sim
 UINTAH_DIR=$WORK/maverick/uintah/
 UINTAH_SIMULATION=$UINTAH_DIR/uintah-modified/build_knl/StandAlone/sus
 UINTAH_RESTART_FILE=$UINTAH_DIR/restart-OFC-wasatch-50Mpps
-UINTAH_RANKS_PER_NODE=34
+UINTAH_RANKS_PER_NODE=32
 UINTAH_RANKS=$(($NUM_UINTAH_NODES * $UINTAH_RANKS_PER_NODE))
 
 start_osp_workers=$(($NUM_UINTAH_NODES + 1))
