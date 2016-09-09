@@ -3,8 +3,8 @@
 #SBATCH -t 00:05:00
 #SBATCH -o test_log.txt
 # Nodes should be #osp workers + 1 (osp master) + 3 uintah
-#SBATCH -N 8
-#SBATCH -n 8
+#SBATCH -N 12
+#SBATCH -n 12
 #SBATCH -p normal
 
 WORK=/work/03160/will/
@@ -48,7 +48,7 @@ UINTAH_DIR=$WORK/maverick/uintah/
 UINTAH_SIMULATION=$UINTAH_DIR/uintah-modified/build_knl/StandAlone/sus
 UINTAH_RESTART_FILE=$UINTAH_DIR/restart-OFC-wasatch-50Mpps
 UINTAH_RANKS_PER_NODE=34
-UINTAH_RANKS=$(($SLURM_NNODES * $UINTAH_RANKS_PER_NODE))
+UINTAH_RANKS=$(($NUM_UINTAH_NODES * $UINTAH_RANKS_PER_NODE))
 
 start_osp_workers=$(($NUM_UINTAH_NODES + 1))
 OSPRAY_NODE_LIST=`scontrol show hostname $SLURM_NODELIST | tail -n +${start_osp_workers} | tr '\n' ',' | sed s/,$//`
@@ -71,8 +71,7 @@ set -x
 echo "Spawning simulation"
 export OSP_IS_PARTICLE_ATTRIB=p.u
 
-# TODO: This won't work b/c mpirun and SLURM are all fucked up on Stampede 1.5 currently
-mpirun -n $UINTAH_RANKS -ppn $UINTAH_RANKS_PER_NODE -f $UINTAH_HOST_FILE $UINTAH_SIMULATION \
+mpiexec.hydra -n $UINTAH_RANKS -ppn $UINTAH_RANKS_PER_NODE -hosts $UINTAH_NODE_LIST $UINTAH_SIMULATION \
   -restart $UINTAH_RESTART_FILE | tee $OUT_DIR/${SLURM_JOB_NAME}-uintah-log.txt &
 
 sleep 60
@@ -81,8 +80,8 @@ echo "Launching ospBenchmark"
 
 export I_MPI_PIN_DOMAIN=node
 
-mpirun -n $NUM_OSPRAY_NODES -ppn 1 -f $OSPRAY_HOST_FILE ./ospBenchmark --module pkd --osp:mpi \
+mpiexec.hydra -n $NUM_OSPRAY_NODES -ppn 1 -hosts $OSPRAY_NODE_LIST ./ospBenchmark --module pkd --osp:mpi \
   --script $BENCH_SCRIPT -w 1920 -h 1080 | tee $OUT_DIR/${SLURM_JOB_NAME}-ospray-log.txt
 
-scancel -n $SBATCH_JOBID
+scancel -n $SLURM_JOBID
 
