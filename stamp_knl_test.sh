@@ -15,7 +15,29 @@ source $LONESTAR/embree-2.10.0.x86_64.linux/embree-vars.sh
 
 MODULE_ISP=$LONESTAR/ospray/modules/module_in_situ_particles/
 BENCH_SCRIPT=$MODULE_ISP/bench_insituspheres.chai
-export OSPRAY_DATA_PARALLEL=2x1x1
+
+NUM_OSPRAY_WORKERS=$(($SLURM_NNODES - 1))
+if [ $NUM_OSPRAY_WORKERS -eq 1 ]; then
+  dp_grid=(1 1 1)
+elif [ $NUM_OSPRAY_WORKERS -eq 2 ]; then
+  dp_grid=(2 1 1)
+elif [ $NUM_OSPRAY_WORKERS -eq 4 ]; then
+  dp_grid=(2 2 1)
+elif [ $NUM_OSPRAY_WORKERS -eq 8 ]; then
+  dp_grid=(2 2 2)
+elif [ $NUM_OSPRAY_WORKERS -eq 16 ]; then
+  dp_grid=(4 2 2)
+elif [ $NUM_OSPRAY_WORKERS -eq 32 ]; then
+  dp_grid=(4 4 2)
+elif [ $NUM_OSPRAY_WORKERS -eq 64 ]; then
+  dp_grid=(4 4 4)
+elif [ $NUM_OSPRAY_WORKERS -eq 128 ]; then
+  dp_grid=(8 4 4)
+elif [ $NUM_OSPRAY_WORKERS -eq 256 ]; then
+  dp_grid=(8 8 4)
+fi
+echo "Setting OSPRAY_DATA_PARALLEL = ${dp_grid[*]}"
+export OSPRAY_DATA_PARALLEL=${dp_grid[0]}x${dp_grid[1]}x${dp_grid[2]}
 
 TEST_SIMULATION=$MODULE_ISP/libIS/build/test_sim
 UINTAH_DIR=$WORK/maverick/uintah/

@@ -4,9 +4,10 @@ def geometry_updated(geom, bounds){
   geom_updated = true;
 }
 
-var vp = vec3f(1.101944, 1.572530, -0.593663);
-var vu = vec3f(0.000000, 1.000000, 0.000000);
-var vi = vec3f(0.497749, 0.496064, 0.496266);
+
+var vp = vec3f(0.313464, 0.338306, 0.708575);
+var vi = vec3f(0.366247, 0.306541, 0.288766);
+var vu = vec3f(0.00931301, 0.994395, -0.0740706);
 var dir = vi - vp;
 c.set("pos", vp)
 c.set("dir", dir);
@@ -14,10 +15,10 @@ c.set("up", vu);
 c.commit();
 
 var bounds = box3f();
-var isp_renderer = Renderer("isp")
+var isp_renderer = Renderer("isp2")
 var sim_head_node = getEnvString("SIMULATION_HEAD_NODE");
 print("Connecting to sim on " + sim_head_node);
-var iss = pkdPollSim(isp_renderer, sim_head_node, 29374, 0.001, 1.0, bounds, geometry_updated);
+var iss = pkdPollSim(isp_renderer, sim_head_node, 29374, 0.0009, 1.0, bounds, geometry_updated);
 
 m.addGeometry(iss);
 m.commit();
