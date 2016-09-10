@@ -1,7 +1,6 @@
 #!/bin/bash
 #SBATCH -J insitu-knl-test
 #SBATCH -t 00:08:00
-#SBATCH -o test_log.txt
 # Nodes should be #osp workers + 1 (osp master) + 3 uintah
 #SBATCH -N 15
 #SBATCH -n 15
