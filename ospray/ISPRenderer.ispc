@@ -225,7 +225,7 @@ inline uniform bool shouldRenderBlock(DDSpheresBlock *uniform block,
                                       uniform int32 tileID,
                                       uniform int32 myRank)
 {
-  return block->isMine && (myRank - block->firstOwner) == (tileID % block->numOwners);
+  return block->isMine && (myRank - block->firstOwner) == (tileID % block->numOwners) && block->cpp_pkd;
 }
 
 extern "C" Tile *uniform ISPCacheForTiles_getTile(void *uniform cache, uniform int32 blockID);

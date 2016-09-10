@@ -45,7 +45,7 @@ namespace ospray {
     box3f b = empty;
     if (!ddSpheres.empty()){
       for (const auto &s : ddSpheres) {
-        if (s.isMine) {
+        if (s.isMine && s.pkd) {
           b.extend(s.pkd->getBounds());
         }
       }
@@ -55,7 +55,7 @@ namespace ospray {
 
   void InSituSpheres::finalize(Model *model) {
     for (auto &spheres : ddSpheres) {
-      if (spheres.isMine) {
+      if (spheres.isMine && spheres.pkd) {
         spheres.pkd->finalize(model);
         spheres.ispc_pkd = spheres.pkd->getIE();
       }
@@ -85,7 +85,7 @@ namespace ospray {
     ddSpheres = std::move(nextDDSpheres);
     TransferFunction *tfn = (TransferFunction*)getParamObject("transferFunction", NULL);
     for (auto &spheres : ddSpheres) {
-      if (spheres.isMine) {
+      if (spheres.isMine && spheres.pkd) {
         spheres.pkd->setParam("transferFunction", tfn);
         spheres.pkd->commit();
       }
@@ -158,7 +158,7 @@ namespace ospray {
     float local_attr_hi = std::numeric_limits<float>::lowest();
 #if !USE_RENDER_RANK_ATTRIB
     for (const auto &b : nextDDSpheres) {
-      if (b.isMine) {
+      if (b.isMine && b.pkd) {
         for (size_t i = 0; i < b.attributes->size(); ++i) {
           local_attr_lo = std::min(local_attr_lo, (*b.attributes)[i]);
           local_attr_hi = std::max(local_attr_hi, (*b.attributes)[i]);
@@ -178,7 +178,7 @@ namespace ospray {
 
     // Give each PKD the global attribute range and commit them
     for (auto &ddspheres : nextDDSpheres) {
-      if (ddspheres.isMine) {
+      if (ddspheres.isMine && ddspheres.pkd) {
         ddspheres.pkd->findParam("attribute_low", 1)->set(attr_lo);
         ddspheres.pkd->findParam("attribute_high", 1)->set(attr_hi);
       }
@@ -221,7 +221,9 @@ namespace ospray {
     }
 
     if (model.position.empty()){
-      throw std::runtime_error("#ospray:geometry/InSituSpheres: no 'InSituSpheres' data loaded from sim");
+      std::cout << "Warning " << mpi::worker.rank << " has no data loaded\n";
+      ddspheres.pkd = nullptr;
+      return;
     }
     // We've got our positions so now send it to the ospray geometry
     if (model.position.size() >= (1ULL << 30)) {

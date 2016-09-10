@@ -20,7 +20,7 @@ namespace ospray {
       ispcBlock.numOwners = b.numOwners;
       ispcBlock.isMine = b.isMine;
       ispcBlock.blockID = nextBlockID++;
-      if (b.isMine) {
+      if (b.isMine && b.pkd) {
         ispcBlock.cpp_pkd = static_cast<void*>(b.pkd.ptr);
         ispcBlock.ispc_pkd = b.pkd->getIE();
       } else {
