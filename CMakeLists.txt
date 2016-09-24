@@ -14,9 +14,9 @@
 ## limitations under the License.                                           ##
 ## ======================================================================== ##
 
-option(OSPRAY_MODULE_PARTIKD "Build Particle KD Tree + InSituSpheres Module." ON)
+option(OSPRAY_MODULE_IN_SITU_PARTICLES "Build InSituSpheres Module." ON)
 
-if (OSPRAY_MODULE_PARTIKD)
+if (OSPRAY_MODULE_IN_SITU_PARTICLES)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
   if (NOT OSPRAY_EXP_DATA_PARALLEL)
@@ -30,7 +30,7 @@ if (OSPRAY_MODULE_PARTIKD)
   include_directories(${MPI_CXX_INCLUDE_PATH})
   include_directories(${PROJECT_SOURCE_DIR}/apps/common/script/)
 
-  ospray_create_library(ospray_module_pkd
+  ospray_create_library(ospray_module_in_situ_particles
     ospray/PKDGeometry.cpp
     ospray/PKDGeometry.ispc
     ospray/MinMaxBVH2.cpp
