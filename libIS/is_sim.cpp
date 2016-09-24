@@ -18,6 +18,7 @@
 #include <vector>
 #include <chrono>
 #include <unordered_map>
+#include <tbb/parallel_sort.h>
 
 #include "is_common.h"
 #include "ospray/common/OSPCommon.h"
@@ -203,71 +204,110 @@ namespace is_sim {
 		  return client_comms[client_id];
 	  }
   }
+
   void pullRequest(const std::string &portName,
-                   size_t numParticles,
-                   float *particle)
+      const size_t numParticles,
+      float *particle)
   {
-	if (simRank == 0){
-		std::cout << "Handling request from " << portName << std::endl;
-	}
-	MPI_Comm remComm = connectClient(portName);
+    if (simRank == 0){
+      std::cout << "Handling request from " << portName << std::endl;
+    }
+    MPI_Comm remComm = connectClient(portName);
     int remSize;
     MPI_CALL(Comm_remote_size(remComm,&remSize));
-    
+
     if (simRank == 0) 
       cout << "#is_sim: mpi comm from is_render established... have " 
-           << remSize << " remote ranks" << endl;
+        << remSize << " remote ranks" << endl;
 
     /*! this sends the (reduced) bounding box to the render
-        processes, and then waits for a list of boxes from each rank
-        that'll say which particles it wants */
-     // compute bounds of all particles on this node ...
-     box3f myBounds = computeBounds(particle,numParticles);
-     box3f allBounds;
-     // ... and across all sim ranks
-     MPI_CALL(Allreduce(&myBounds.lower,&allBounds.lower,3,MPI_FLOAT,MPI_MIN,simComm));
-     MPI_CALL(Allreduce(&myBounds.upper,&allBounds.upper,3,MPI_FLOAT,MPI_MAX,simComm));
+      processes, and then waits for a list of boxes from each rank
+      that'll say which particles it wants */
+    // compute bounds of all particles on this node ...
+    using namespace std::chrono;
+    auto start = high_resolution_clock::now();
+    box3f myBounds = computeBounds(particle,numParticles);
+    box3f allBounds;
+    // ... and across all sim ranks
+    MPI_CALL(Allreduce(&myBounds.lower,&allBounds.lower,3,MPI_FLOAT,MPI_MIN,simComm));
+    MPI_CALL(Allreduce(&myBounds.upper,&allBounds.upper,3,MPI_FLOAT,MPI_MAX,simComm));
+    auto end = high_resolution_clock::now();
+    std::cout << "Box computation took " << duration_cast<milliseconds>(end - start).count()
+      << "ms\n";
 
 #if PRINT_FULL_PARTICLE_COUNT
-	 size_t totalParticles = 0;
-	 MPI_CALL(Allreduce(&numParticles, &totalParticles, 1, MPI_UINT64_T, MPI_SUM, simComm));
-	 if (simRank == 0){
-		 cout << "#is_sim: Total number of particles = " << totalParticles << "\n";
-	 }
+    size_t totalParticles = 0;
+    MPI_CALL(Allreduce(&numParticles, &totalParticles, 1, MPI_UINT64_T, MPI_SUM, simComm));
+    if (simRank == 0){
+      cout << "#is_sim: Total number of particles = " << totalParticles << "\n";
+    }
 #endif
 
-     // now, send reduced bounds to remote group
-     if (simRank == 0) {
-	   // TODO WILL: Also send the stride of the data we're sending
-	   // if we want more than 1 attrib
-       MPI_CALL(Bcast(&allBounds,6,MPI_FLOAT,MPI_ROOT,remComm));
-	   PRINT(allBounds);
-     }
+    // now, send reduced bounds to remote group
+    if (simRank == 0) {
+      // TODO WILL: Also send the stride of the data we're sending
+      // if we want more than 1 attrib
+      MPI_CALL(Bcast(&allBounds,6,MPI_FLOAT,MPI_ROOT,remComm));
+      PRINT(allBounds);
+    }
 
 
-	 std::vector<float> queried;
-     for (int r=0;r<remSize;r++) {
-	   queried.clear();
-       int numFromR;
-       MPI_CALL(Recv(&numFromR,1,MPI_INT,r,MPI_ANY_TAG,remComm,MPI_STATUS_IGNORE));
-       for (int q=0;q<numFromR;q++) {
-         box3f queryBox;
-         MPI_CALL(Recv(&queryBox,6,MPI_FLOAT,r,
-                       MPI_ANY_TAG,remComm,MPI_STATUS_IGNORE));
-         
-		 for (int i = 0; i < numParticles; ++i){
-			 int pid = i * OSP_IS_STRIDE_IN_FLOATS;
-			 if (inside(queryBox, vec3f(particle[pid], particle[pid + 1], particle[pid + 2]))){
-				 for (int j = 0; j < OSP_IS_STRIDE_IN_FLOATS; ++j){
-					 queried.push_back(particle[pid + j]);
-				 }
-			 }
-		 }
-         int num = queried.size() / OSP_IS_STRIDE_IN_FLOATS;
-         MPI_CALL(Send(&num,1,MPI_INT,r,0,remComm));
-         MPI_CALL(Send(&queried[0], queried.size(), MPI_FLOAT, r, 0, remComm));
-       }
-     }
+    start = high_resolution_clock::now();
+    //std::vector<size_t> particle_inside;
+    //particle_inside.resize(numParticles);
+    for (int r=0;r<remSize;r++) {
+      int numFromR;
+      MPI_CALL(Recv(&numFromR,1,MPI_INT,r,MPI_ANY_TAG,remComm,MPI_STATUS_IGNORE));
+      for (int q=0;q<numFromR;q++) {
+        box3f queryBox;
+        MPI_CALL(Recv(&queryBox,6,MPI_FLOAT,r,
+              MPI_ANY_TAG,remComm,MPI_STATUS_IGNORE));
+
+        /*
+        for (int i = 0; i < numParticles; ++i){
+          int pid = i * OSP_IS_STRIDE_IN_FLOATS;
+          if (inside(queryBox, vec3f(particle[pid], particle[pid + 1], particle[pid + 2]))){
+            for (int j = 0; j < OSP_IS_STRIDE_IN_FLOATS; ++j){
+              queried.push_back(particle[pid + j]);
+            }
+          }
+        }
+        */
+        if (numParticles > 0){
+          vec4f *start = reinterpret_cast<vec4f*>(&particle[0]);
+          vec4f *end = reinterpret_cast<vec4f*>(&particle[(numParticles - 1) * 4]);
+          /*
+          vec4f *end_queried = std::partition(start, end,
+              [&](const vec4f &v){
+                return inside(queryBox, vec3f(v.x, v.y, v.z));
+              });
+              */
+          tbb::parallel_sort(start, end,
+              [&](const vec4f &a, const vec4f &b){
+                bool a_in = inside(queryBox, vec3f(a.x, a.y, a.z));
+                bool b_in = inside(queryBox, vec3f(b.x, b.y, b.z));
+                if (a_in && !b_in){
+                  return true;
+                }
+              });
+          vec4f *end_queried = std::find_if(start, end,
+              [&](const vec4f &a){
+                return !inside(queryBox, vec3f(a.x, a.y, a.z));
+              });
+
+          int num = std::distance(start, end_queried);
+          MPI_CALL(Send(&num,1,MPI_INT,r,0,remComm));
+          MPI_CALL(Send(&particle[0], num * 4, MPI_FLOAT, r, 0, remComm));
+        } else {
+          int num = 0;
+          MPI_CALL(Send(&num,1,MPI_INT,r,0,remComm));
+          MPI_CALL(Send(&particle[0], num * 4, MPI_FLOAT, r, 0, remComm));
+        }
+      }
+    }
+    end = high_resolution_clock::now();
+    std::cout << "Responding to all queries took " << duration_cast<milliseconds>(end - start).count()
+      << "ms, i have " << numParticles << " particles\n";
   }
 
   extern "C" void ospIsInit(MPI_Comm comm)
