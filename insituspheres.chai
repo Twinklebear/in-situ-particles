@@ -1,5 +1,7 @@
 def geometry_updated(geom, bounds){
   print("geometry updated!");
+  // Note: This does not currently work with devel OSPRay
+  // as it requires the manual script lock feature.
   scriptLock();
   geom.commit();
   m.commit();
@@ -9,9 +11,18 @@ def geometry_updated(geom, bounds){
 
 var bounds = box3f();
 var isp_renderer = Renderer("isp")
-// This is the pollOnce mode
-//iss = ispPollOnce(r, "localhost", 29374, 0.015, bounds);
-var iss = ispPollSim(isp_renderer, "localhost", 29374, 0.015, 1.0, bounds, geometry_updated);
+var iss;
+var pollOnce = true;
+if (pollOnce) {
+  // This is the pollOnce mode
+  print("Polling the simulation just once");
+  iss = ispPollOnce(r, "localhost", 29374, 0.015, bounds);
+} else {
+  // This is the query repeatedly mode. Note that we don't poll but just
+  // wait until the sim contacts us back with a new timestep for later timesteps
+  print("Querying repeatedly from the simulation");
+  iss = ispPollSim(isp_renderer, "localhost", 29374, 0.015, 1.0, bounds, geometry_updated);
+}
 
 m.addGeometry(iss);
 m.commit();
