@@ -19,7 +19,7 @@ var isp_renderer = Renderer("isp2")
 var sim_head_node = getEnvString("SIMULATION_HEAD_NODE");
 var job_name = getEnvString("SLURM_JOB_NAME");
 print("Connecting to sim on " + sim_head_node);
-var iss = pkdPollSim(isp_renderer, sim_head_node, 29374, 0.0009, 10.0, bounds, geometry_updated);
+var iss = ispPollSim(isp_renderer, sim_head_node, 29374, 0.0009, 10.0, bounds, geometry_updated);
 
 m.addGeometry(iss);
 m.commit();

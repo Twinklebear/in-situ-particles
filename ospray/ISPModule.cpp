@@ -26,14 +26,14 @@
 
 using namespace ospcommon;
 
-namespace pkd {
+namespace isp {
   namespace cs = chaiscript;
 
   ospray::cpp::Geometry setupInSituSpheres(ospray::cpp::Renderer renderer, const std::string &server,
       const int port, const float radius)
   {
     using namespace ospray::cpp;
-    std::cout << "#osp:pkd:InSituSpheres: setting up InSituSpheres geometry\n";
+    std::cout << "#osp:isp:InSituSpheres: setting up InSituSpheres geometry\n";
 
     Geometry geometry("InSituSpheres");
 
@@ -107,20 +107,25 @@ namespace pkd {
     return geometry;
   }
   void registerModule(cs::ChaiScript &engine) {
-    engine.add(cs::fun(&pollOnce), "pkdPollOnce");
-    engine.add(cs::fun(&pollSim), "pkdPollSim");
+    engine.add(cs::fun(&pollOnce), "ispPollOnce");
+    engine.add(cs::fun(&pollSim), "ispPollSim");
   }
   void printHelp() {
-    std::cout << "==PKD Module (InSituSpheres) Help==\n"
+    std::cout << "==In Situ Particles Module Help==\n"
       << "  Functions:\n"
-      << "    Geometry pkdPollOnce(renderer, server, port, radius, bounds):\n"
+      << "    Geometry ispPollOnce(renderer, server, port, radius, bounds):\n"
       << "      Connect to the simulation running on 'server' listening at 'port'\n"
       << "      and query particle data from it. Returns the geometry and world bounds\n"
+      << "\n"
+      << "    Geometry ispPollSim(renderer, server, port, radius, bounds, callback):\n"
+      << "      Connect to the simulation running on 'server' listening at 'port'\n"
+      << "      and query particle data from it. Returns the geometry and world bounds\n"
+      << "      of the first poll and calls the 'callback' for continuing queries\n"
       << "====\n";
   }
-  extern "C" void ospray_init_module_pkd() {
-    std::cout << "#osp:pkd: loading 'pkd' module" << std::endl;
-    ospray::script::register_module(pkd::registerModule, pkd::printHelp);
+  extern "C" void ospray_init_module_in_situ_particles() {
+    std::cout << "#osp:isp: loading 'isp' module" << std::endl;
+    ospray::script::register_module(isp::registerModule, isp::printHelp);
   }
 }
 

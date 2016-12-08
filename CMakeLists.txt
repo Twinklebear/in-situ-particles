@@ -44,7 +44,7 @@ if (OSPRAY_MODULE_IN_SITU_PARTICLES)
     ospray/ISPRenderer.cpp
     ospray/ISPRenderer.ispc
     ospray/ISPDPRenderTask.cpp
-    ospray/PKDModule.cpp
+    ospray/ISPModule.cpp
     # Need PKD builders for InSituSpheres
     apps/PartiKD.cpp
     apps/ParticleModel.cpp
