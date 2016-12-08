@@ -90,7 +90,7 @@ static void PartiKDGeometry_postIntersect(uniform Geometry *uniform geometry,
 #undef  DG_NS_NORMALIZE
 }
 
-void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,
+unmasked void PartiKDGeometry_bounds(uniform PartiKDGeometry *uniform geometry,
                             uniform size_t primID,
                             uniform box3fa &bbox)
 {
